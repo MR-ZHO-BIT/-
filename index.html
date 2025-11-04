@@ -5,83 +5,213 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>给最坚强的知意 ❤️</title>
     <style>
-        /* 全局样式保持不变，新增以下关键样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
         
-        /* 进度条+爱心动画 */
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #ffd1dc, #ffb7b2);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 30px;
+            padding: 40px 30px;
+            box-shadow: 0 15px 30px rgba(255, 107, 107, 0.3);
+            text-align: center;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .heart-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.1;
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        .content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #ff6b6b;
+            font-size: 28px;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .hearts {
+            color: #ff6b6b;
+            font-size: 24px;
+            margin: 15px 0;
+            letter-spacing: 5px;
+        }
+        
+        .heart-emoji {
+            font-size: 120px;
+            color: #ff6b6b;
+            margin: 30px 0;
+            text-shadow: 0 5px 10px rgba(255, 107, 107, 0.3);
+            animation: heartbeat 1.5s infinite;
+        }
+        
         .progress-bar {
             width: 100%;
             max-width: 300px;
-            height: 12px;
+            height: 20px;
             background: rgba(255, 255, 255, 0.5);
-            border-radius: 6px;
+            border-radius: 10px;
             margin: 20px 0;
             overflow: hidden;
             position: relative;
         }
-        .progress-bar .heart {
+        .progress-heart {
             position: absolute;
             top: 50%;
+            transform: translateY(-50%);
             left: 0;
-            transform: translate(-50%, -50%);
-            font-size: 16px;
-            animation: progressHeart 3s forwards; /* 与进度条同步动画 */
-        }
-        .progress-bar::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 100%;
-            background: linear-gradient(90deg, #ff6b6b, #ff9aa2);
-            border-radius: 6px;
-            animation: progress 3s forwards;
-        }
-        @keyframes progress {
-            0% { width: 0; }
-            100% { width: 100%; }
-        }
-        @keyframes progressHeart {
-            0% { left: 0; }
-            100% { left: 100%; } /* 爱心随进度条移动到末端 */
-        }
-
-        /* 按钮爱心布局（文字左右各一个） */
-        .btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px; /* 文字与爱心的间距 */
-        }
-        .btn::before, .btn::after {
-            content: "❤️";
+            transition: left 3s linear;
             font-size: 16px;
         }
-
-        /* 满屏随机祝福的弹窗样式+动画 */
-        .floating-blessing {
-            position: fixed;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 16px;
-            padding: 12px 18px;
-            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        .progress-bar.loaded .progress-heart {
+            left: calc(100% - 1em);
+        }
+        
+        .message {
+            font-size: 16px;
+            color: #555;
+            margin: 15px 0;
             font-family: "KaiTi", sans-serif;
-            animation: floatIn 0.8s ease-out forwards, float 3s infinite ease-in-out;
-            z-index: 999;
         }
-        @keyframes floatIn {
-            0% { 
-                opacity: 0; 
-                transform: scale(0.5);
-            }
-            100% { 
-                opacity: 1; 
-                transform: scale(1);
-            }
+        
+        .btn {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+            transition: all 0.3s;
+            width: 100%;
+            max-width: 220px;
         }
+        
+        .btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 3px 10px rgba(255, 107, 107, 0.4);
+            background: #ff9aa2;
+        }
+        
+        .footer {
+            color: #888;
+            font-size: 12px;
+            margin-top: 15px;
+            font-family: "KaiTi", sans-serif;
+        }
+        
+        .popup-content {
+            width: 85%;
+            max-width: 380px;
+            background: #ffd1dc;
+            border-radius: 20px;
+            padding: 25px;
+            position: fixed;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s;
+        }
+        
+        .popup-content.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .popup-title {
+            color: #ff6b6b;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .popup-message {
+            font-size: 18px;
+            color: #333;
+            margin: 20px 0;
+            font-family: "KaiTi", sans-serif;
+            line-height: 1.5;
+        }
+        
+        .popup-close {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        
+        .popup-countdown {
+            position: absolute;
+            bottom: 10px;
+            right: 15px;
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .decoration {
+            position: absolute;
+            font-size: 24px;
+            opacity: 0.7;
+            z-index: 0;
+        }
+        
+        @keyframes heartbeat {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
         @keyframes float {
-            0% { transform: translateY(0) rotate(0deg); }
-            50% { transform: translateY(-10px) rotate(5deg); }
-            100% { transform: translateY(0) rotate(0deg); }
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0); }
+        }
+        
+        .floating {
+            animation: float 3s infinite ease-in-out;
         }
     </style>
 </head>
@@ -99,11 +229,26 @@
             <div class="hearts">❤️ ❤️ ❤️ ❤️ ❤️</div>
             <div class="heart-emoji floating">❤️</div>
             <div class="progress-bar">
-                <span class="heart">❤️</span>
+                <div class="progress-heart">❤️</div>
             </div>
             <p class="message">点击下面的按钮，接收我的祝福</p >
+            <!-- 移除按钮上的爱心，仅保留文字 -->
             <button class="btn" id="blessingBtn">点击接收祝福</button>
             <p class="footer">专属于你的祝福程序</p >
+        </div>
+    </div>
+    
+    <div class="popup-template" style="display: none;">
+        <div class="popup-content">
+            <div class="decoration" style="top: 10px; left: 15px;">🌸</div>
+            <div class="decoration" style="top: 15px; right: 20px;">💕</div>
+            <div class="decoration" style="bottom: 40px; left: 20px;">✨</div>
+            <div class="decoration" style="bottom: 35px; right: 15px;">🎀</div>
+            
+            <div class="popup-title">✨ 小粥同学的祝福 ✨</div>
+            <div class="popup-message"></div>
+            <button class="popup-close">❤️ 关闭</button>
+            <div class="popup-countdown">⏳ 8秒后关闭</div>
         </div>
     </div>
 
@@ -130,56 +275,84 @@
             "做事不冲动 🌍",
             "一切都会越来越好❤️ "
         ];
+        const colors = [
+            "#FFD1DC", "#FFB7B2", "#FFDAC1", "#E2F0CB", "#B5EAD7",
+            "#C7CEEA", "#FF9AA2", "#A7E8BD", "#FFE6B5", "#D4BBFC",
+            "#FFB5C2", "#A0E7E5", "#FFC8A2", "#B4E8E6", "#FFC6D9",
+            "#C5E0D8", "#FFB8C6", "#B8DFD8", "#FFD3B6", "#D6EADF"
+        ];
 
         const blessingBtn = document.getElementById('blessingBtn');
+        let interval = null;
 
-        // 随机满屏祝福逻辑
-        function showRandomBlessings() {
-            const total = 15; // 满屏祝福的数量
-            const duration = 2000; // 每个祝福的显示间隔
-            let count = 0;
+        window.addEventListener('load', function() {
+            const progressBar = document.querySelector('.progress-bar');
+            progressBar.classList.add('loaded');
+        });
 
-            const interval = setInterval(() => {
-                if (count >= total) {
+        function startBlessings() {
+            blessingBtn.disabled = true;
+            for (let i = 0; i < 3; i++) {
+                createRandomBlessing();
+            }
+            interval = setInterval(() => {
+                createRandomBlessing();
+                if (Math.random() > 0.7) {
                     clearInterval(interval);
-                    return;
+                    setTimeout(() => {
+                        blessingBtn.disabled = false;
+                    }, 2000);
                 }
-
-                // 随机选取祝福
-                const randomIndex = Math.floor(Math.random() * messages.length);
-                const msg = messages[randomIndex];
-
-                // 创建浮动祝福元素
-                const blessing = document.createElement('div');
-                blessing.className = 'floating-blessing';
-                blessing.textContent = msg;
-
-                // 随机位置（基于屏幕尺寸）
-                const screenWidth = window.innerWidth;
-                const screenHeight = window.innerHeight;
-                const left = Math.random() * (screenWidth - 150);
-                const top = Math.random() * (screenHeight - 80);
-                blessing.style.left = `${left}px`;
-                blessing.style.top = `${top}px`;
-
-                // 随机动画延迟和持续时间
-                const delay = Math.random() * 1;
-                const floatDuration = 3 + Math.random() * 2;
-                blessing.style.animationDelay = `${delay}s`;
-                blessing.style.animation = `floatIn 0.8s ease-out forwards, float ${floatDuration}s infinite ease-in-out`;
-
-                document.body.appendChild(blessing);
-
-                // 自动移除（避免页面过载）
-                setTimeout(() => {
-                    blessing.remove();
-                }, 8000);
-
-                count++;
-            }, duration);
+            }, 600);
         }
 
-        blessingBtn.addEventListener('click', showRandomBlessings);
+        function createRandomBlessing() {
+            const template = document.querySelector('.popup-template');
+            const popup = template.querySelector('.popup-content').cloneNode(true);
+            document.body.appendChild(popup);
+
+            const randomMsgIndex = Math.floor(Math.random() * messages.length);
+            const randomColorIndex = Math.floor(Math.random() * colors.length);
+
+            popup.querySelector('.popup-message').textContent = messages[randomMsgIndex];
+            popup.style.backgroundColor = colors[randomColorIndex];
+
+            const top = Math.floor(Math.random() * (window.innerHeight - 200)) + 'px';
+            const left = Math.floor(Math.random() * (window.innerWidth - 300)) + 'px';
+            popup.style.top = top;
+            popup.style.left = left;
+
+            setTimeout(() => {
+                popup.style.opacity = '1';
+                popup.style.transform = 'translateY(0)';
+            }, 10);
+
+            const closeBtn = popup.querySelector('.popup-close');
+            closeBtn.addEventListener('click', () => {
+                popup.style.opacity = '0';
+                popup.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    document.body.removeChild(popup);
+                }, 500);
+            });
+
+            let remaining = 8;
+            const countdown = popup.querySelector('.popup-countdown');
+            const countdownTimer = setInterval(() => {
+                remaining--;
+                countdown.textContent = `⏳ ${remaining}秒后关闭`;
+                if (remaining <= 0) {
+                    clearInterval(countdownTimer);
+                    popup.style.opacity = '0';
+                    popup.style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        document.body.removeChild(popup);
+                    }, 500);
+                }
+            }, 1000);
+        }
+
+        blessingBtn.addEventListener('click', startBlessings);
     </script>
 </body>
 </html>
