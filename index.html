@@ -1,0 +1,366 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>给最坚强的知意 ❤️</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #ffd1dc, #ffb7b2);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            position: relative;
+            width: 100%;
+            max-width: 500px; /* 加宽容器，提升视觉协调度 */
+            background: rgba(255, 255, 255, 0.2); /* 淡透明白色背景，与主视觉融合 */
+            border-radius: 30px;
+            padding: 40px 30px;
+            box-shadow: 0 15px 30px rgba(255, 107, 107, 0.3);
+            text-align: center;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* 子元素水平居中 */
+        }
+        
+        .heart-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.1;
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        .content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* 子元素水平居中 */
+        }
+        
+        h1 {
+            color: #ff6b6b;
+            font-size: 28px;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .hearts {
+            color: #ff6b6b;
+            font-size: 24px;
+            margin: 10px 0;
+            letter-spacing: 5px;
+        }
+        
+        .heart-emoji {
+            font-size: 120px;
+            color: #ff6b6b;
+            margin: 25px 0;
+            text-shadow: 0 5px 10px rgba(255, 107, 107, 0.3);
+            animation: heartbeat 1.5s infinite;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            max-width: 300px; /* 进度条宽度，与爱心视觉对齐 */
+            height: 20px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-bar::before {
+            content: "❤️";
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #ff9aa2);
+            border-radius: 10px;
+            animation: progress 3s forwards; /* 进度条动画，增强互动感 */
+        }
+        
+        @keyframes progress {
+            0% { width: 0; }
+            100% { width: 100%; }
+        }
+        
+        .message {
+            font-size: 16px;
+            color: #555;
+            margin: 15px 0;
+            font-family: "KaiTi", sans-serif;
+        }
+        
+        .btn {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+            transition: all 0.3s;
+            width: 100%;
+            max-width: 220px; /* 按钮宽度与进度条/爱心视觉对齐 */
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 3px 10px rgba(255, 107, 107, 0.4);
+            background: #ff9aa2;
+        }
+        
+        .footer {
+            color: #888;
+            font-size: 12px;
+            margin-top: 15px;
+            font-family: "KaiTi", sans-serif;
+        }
+        
+        .popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .popup.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        .popup-content {
+            width: 85%;
+            max-width: 380px;
+            background: #ffd1dc;
+            border-radius: 20px;
+            padding: 25px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transform: translateY(20px);
+            transition: transform 0.3s;
+        }
+        
+        .popup.active .popup-content {
+            transform: translateY(0);
+        }
+        
+        .popup-title {
+            color: #ff6b6b;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .popup-message {
+            font-size: 18px;
+            color: #333;
+            margin: 20px 0;
+            font-family: "KaiTi", sans-serif;
+            line-height: 1.5;
+        }
+        
+        .popup-close {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        
+        .popup-countdown {
+            position: absolute;
+            bottom: 10px;
+            right: 15px;
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .decoration {
+            position: absolute;
+            font-size: 24px;
+            opacity: 0.7;
+            z-index: 0;
+        }
+        
+        @keyframes heartbeat {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0); }
+        }
+        
+        .floating {
+            animation: float 3s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="heart-bg">
+            ❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️
+            ❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️
+            ❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️
+            ❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️
+        </div>
+        
+        <div class="content">
+            <h1>给最坚强的知意 ❤️</h1>
+            <div class="hearts">❤️ ❤️ ❤️ ❤️ ❤️</div>
+            <div class="heart-emoji floating">❤️</div>
+            <div class="progress-bar"></div> <!-- 新增进度条，视觉上与爱心、按钮对齐 -->
+            <p class="message">点击下面的按钮，接收我的祝福</p >
+            <button class="btn" id="blessingBtn">❤️ 点击接收祝福 ❤️</button>
+            <p class="footer">专属于你的祝福程序</p >
+        </div>
+    </div>
+    
+    <div class="popup" id="popup">
+        <div class="popup-content">
+            <div class="decoration" style="top: 10px; left: 15px;">🌸</div>
+            <div class="decoration" style="top: 15px; right: 20px;">💕</div>
+            <div class="decoration" style="bottom: 40px; left: 20px;">✨</div>
+            <div class="decoration" style="bottom: 35px; right: 15px;">🎀</div>
+            
+            <div class="popup-title">✨ 小粥同学的祝福 ✨</div>
+            <div class="popup-message" id="popupMessage">天凉了，记得添衣保暖哦~ ❄️</div>
+            <button class="popup-close" id="popupClose">❤️ 关闭</button>
+            <div class="popup-countdown" id="popupCountdown">⏳ 8秒后关闭</div>
+        </div>
+    </div>
+
+    <script>
+        const messages = [
+            "也不知道你现在在干啥 😊",
+            "天凉了，得多穿点，你知道的~ ❄️",
+            "过去的就别想了，活在当下 ✨",
+            "不把烦恼留明天😄",
+            "我喜欢做你的小观众👂",
+            "开心过好Every day🌟",
+            "吃点甜食，让自己心情会变好 💫",
+            "知意天天开心 😄",
+            "你是最棒的，相信自己！ 💪",
+            "肯定得早睡😴",
+            "我还希望你能吃点热早餐🌟",
+            "开心永相伴 ❤️",
+            "能吃能喝 🍰",
+            "吃好喝好，没烦恼 🍰",
+            "财源滚滚，把钱花在吃饭上~ 🌬️",
+            "今天也要好好爱自己 🌸",
+            "还有，上课别偷偷玩部落冲突，因为我看不到 💞",
+            "笑一笑，烦恼全跑掉 😄",
+            "做事不冲动 🌍",
+            "一切都会越来越好❤️ "
+        ];
+        const colors = [
+            "#FFD1DC", "#FFB7B2", "#FFDAC1", "#E2F0CB", "#B5EAD7",
+            "#C7CEEA", "#FF9AA2", "#A7E8BD", "#FFE6B5", "#D4BBFC",
+            "#FFB5C2", "#A0E7E5", "#FFC8A2", "#B4E8E6", "#FFC6D9",
+            "#C5E0D8", "#FFB8C6", "#B8DFD8", "#FFD3B6", "#D6EADF"
+        ];
+        const displayTime = 8000;
+        const countdownTime = 8;
+
+        const blessingBtn = document.getElementById('blessingBtn');
+        const popup = document.getElementById('popup');
+        const popupMessage = document.getElementById('popupMessage');
+        const popupClose = document.getElementById('popupClose');
+        const popupCountdown = document.getElementById('popupCountdown');
+
+        let currentIndex = 0;
+        let countdownTimer = null;
+
+        function startBlessings() {
+            currentIndex = 0;
+            showNextBlessing();
+            blessingBtn.disabled = true;
+        }
+
+        function showNextBlessing() {
+            if (currentIndex < messages.length) {
+                popupMessage.textContent = messages[currentIndex];
+                const bgColor = colors[currentIndex % colors.length];
+                document.querySelector('.popup-content').style.backgroundColor = bgColor;
+                popup.classList.add('active');
+                startCountdown(countdownTime);
+                currentIndex++;
+                setTimeout(showNextBlessing, displayTime);
+            } else {
+                popupMessage.textContent = "✨ 所有祝福已送达！愿你永远坚强、永远开心 ❤️";
+                popup.classList.add('active');
+                startCountdown(10);
+                blessingBtn.disabled = false;
+            }
+        }
+
+        function startCountdown(seconds) {
+            let remaining = seconds;
+            popupCountdown.textContent = `⏳ ${remaining}秒后关闭`;
+            
+            if (countdownTimer) clearInterval(countdownTimer);
+            
+            countdownTimer = setInterval(() => {
+                remaining--;
+                popupCountdown.textContent = `⏳ ${remaining}秒后关闭`;
+                
+                if (remaining <= 0) {
+                    clearInterval(countdownTimer);
+                    closePopup();
+                }
+            }, 1000);
+        }
+
+        function closePopup() {
+            popup.classList.remove('active');
+            if (countdownTimer) clearInterval(countdownTimer);
+            popupCountdown.textContent = `⏳ ${countdownTime}秒后关闭`;
+        }
+
+        blessingBtn.addEventListener('click', startBlessings);
+        popupClose.addEventListener('click', closePopup);
+    </script>
+</body>
+</html>
