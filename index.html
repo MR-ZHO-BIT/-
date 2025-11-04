@@ -37,6 +37,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            z-index: 1; /* 封面层级（较低） */
         }
         
         .heart-bg {
@@ -150,6 +151,7 @@
             opacity: 0;
             transform: translateY(20px);
             transition: all 0.5s;
+            z-index: 1000; /* 弹窗层级（更高） */
         }
         
         .popup-content.active {
@@ -232,7 +234,6 @@
                 <div class="progress-heart">❤️</div>
             </div>
             <p class="message">点击下面的按钮，接收我的祝福</p >
-            <!-- 移除按钮上的爱心，仅保留文字 -->
             <button class="btn" id="blessingBtn">点击接收祝福</button>
             <p class="footer">专属于你的祝福程序</p >
         </div>
