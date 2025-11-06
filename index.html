@@ -37,7 +37,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            z-index: 1; /* 封面层级（较低） */
+            z-index: 1;
         }
         
         .heart-bg {
@@ -47,13 +47,13 @@
             width: 100%;
             height: 100%;
             opacity: 0.1;
-            z-index: 0; /* 背景爱心层级更低 */
+            z-index: 0;
             pointer-events: none;
         }
         
         .content {
             position: relative;
-            z-index: 2; /* 封面内容层级，仍低于弹窗 */
+            z-index: 2;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -80,7 +80,7 @@
             margin: 30px 0;
             text-shadow: 0 5px 10px rgba(255, 107, 107, 0.3);
             animation: heartbeat 1.5s infinite;
-            z-index: 2; /* 爱心图标层级，仍低于弹窗 */
+            z-index: 2;
         }
         
         .progress-bar {
@@ -92,7 +92,7 @@
             margin: 20px 0;
             overflow: hidden;
             position: relative;
-            z-index: 2; /* 进度条层级，仍低于弹窗 */
+            z-index: 2;
         }
         .progress-heart {
             position: absolute;
@@ -127,7 +127,7 @@
             transition: all 0.3s;
             width: 100%;
             max-width: 220px;
-            z-index: 2; /* 按钮层级，仍低于弹窗 */
+            z-index: 2;
         }
         
         .btn:active {
@@ -154,7 +154,7 @@
             opacity: 0;
             transform: translateY(20px);
             transition: all 0.5s;
-            z-index: 1000; /* 弹窗层级（最高） */
+            z-index: 1000;
         }
         
         .popup-content.active {
@@ -236,9 +236,15 @@
             <div class="progress-bar">
                 <div class="progress-heart">❤️</div>
             </div>
-            <p class="message">点击下面的按钮，接收我的祝福</p >
+            <p class="message">点击下面的按钮，接收我的祝福与音乐</p >
             <button class="btn" id="blessingBtn">点击接收祝福</button>
             <p class="footer">专属于你的祝福程序</p >
+            <!-- 音乐元素（隐藏控件，点击按钮播放） -->
+            <audio id="bgMusic" loop>
+                <!-- 👇 这里替换为你上传的音乐文件RAW链接 -->
+                <source src="(替换为你的音乐文件GitHub RAW链接)" type="audio/mpeg">
+                您的浏览器不支持音频播放
+            </audio>
         </div>
     </div>
     
@@ -287,7 +293,9 @@
         ];
 
         const blessingBtn = document.getElementById('blessingBtn');
+        const bgMusic = document.getElementById('bgMusic');
         let interval = null;
+        let musicPlayed = false; 
 
         window.addEventListener('load', function() {
             const progressBar = document.querySelector('.progress-bar');
@@ -295,6 +303,14 @@
         });
 
         function startBlessings() {
+            if (!musicPlayed) {
+                bgMusic.play().catch(err => {
+                    console.log('播放失败，可能需要用户交互：', err);
+                    alert('请点击页面后再尝试接收祝福，以便播放音乐~');
+                });
+                musicPlayed = true;
+            }
+
             blessingBtn.disabled = true;
             for (let i = 0; i < 3; i++) {
                 createRandomBlessing();
