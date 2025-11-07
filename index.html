@@ -328,13 +328,13 @@
                     createRandomBlessing();
                 }
             }, 3000);
-            // 1分36秒后停止弹窗
+            // 1分钟后停止弹窗
             setTimeout(() => {
                 clearInterval(interval);
                 setTimeout(() => {
                     blessingBtn.disabled = false;
                 }, 1000);
-            }, 96000);
+            }, 240000);
         }
 
         function createRandomBlessing() {
@@ -387,6 +387,7 @@
     </script>
 </body>
 </html>
+
 
 
 
