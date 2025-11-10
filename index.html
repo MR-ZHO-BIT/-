@@ -239,11 +239,11 @@
             <p class="message">点击下面的按钮，接收我的祝福与音乐</p >
             <button class="btn" id="blessingBtn">点击接收祝福</button>
             <p class="footer">专属于你的祝福程序</p >
-            <!-- 音乐元素（相对路径） -->
-            <audio id="bgMusic" loop preload="auto">
+            <!-- 音乐元素（优化preload为metadata，减少初始加载压力） -->
+            <audio id="bgMusic" loop preload="metadata">
                 <source src="missyouhani.mp3" type="audio/mpeg">
                 您的浏览器不支持音频播放
-            </audio>
+            
         </div>
     </div>
     
@@ -301,6 +301,11 @@
         let interval = null;
         let musicPlayed = false; 
 
+        // 音频加载失败兜底
+        bgMusic.addEventListener('error', function() {
+            alert('音乐加载失败～ 不影响祝福接收，愿你天天开心呀 ❤️');
+        });
+
         window.addEventListener('load', function() {
             const progressBar = document.querySelector('.progress-bar');
             progressBar.classList.add('loaded');
@@ -311,12 +316,13 @@
             if (!musicPlayed) {
                 bgMusic.play().catch(err => {
                     console.log('播放失败，可能需要用户交互：', err);
-                    alert('请点击页面后再尝试接收祝福，以便播放音乐~');
+                    alert('请点击页面空白处后再尝试接收祝福，以便正常播放音乐～');
+                    blessingBtn.disabled = false;
+                    blessingBtn.textContent = "点击接收祝福";
                 });
                 musicPlayed = true;
             }
 
-            blessingBtn.disabled = true;
             // 初始生成4个随机弹窗
             for (let i = 0; i < 4; i++) {
                 createRandomBlessing();
@@ -333,6 +339,7 @@
                 clearInterval(interval);
                 setTimeout(() => {
                     blessingBtn.disabled = false;
+                    blessingBtn.textContent = "再次接收祝福";
                 }, 1000);
             }, 240000);
         }
@@ -383,8 +390,13 @@
             }, 1000);
         }
 
-        blessingBtn.addEventListener('click', startBlessings);
+        // 按钮点击事件（添加加载状态，避免重复点击）
+        blessingBtn.addEventListener('click', function() {
+            if (blessingBtn.disabled) return;
+            blessingBtn.disabled = true;
+            blessingBtn.textContent = "加载中...🎵";
+            startBlessings();
+        });
     </script>
 </body>
 </html>
-
