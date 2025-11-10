@@ -83,11 +83,10 @@
             z-index: 2;
         }
         
-        /* 进度条优化：爱心与进度条完全贴合 */
         .progress-bar {
             width: 100%;
             max-width: 300px;
-            height: 24px; /* 微调高度让爱心更贴合 */
+            height: 24px;
             background: rgba(255, 255, 255, 0.5);
             border-radius: 12px;
             margin: 20px 0;
@@ -104,17 +103,16 @@
             border-radius: 12px;
             width: 0;
         }
-        /* 爱心与进度条融合：高度/位置完全匹配，无空隙 */
         .progress-heart {
             position: absolute;
             top: 0;
             left: 0;
             height: 100%;
-            line-height: 24px; /* 与进度条高度一致 */
-            font-size: 18px; /* 适配进度条高度 */
+            line-height: 24px;
+            font-size: 18px;
             color: #ff4a6e;
             z-index: 3;
-            transform: translateX(-2px); /* 微调贴合进度条边缘 */
+            transform: translateX(-2px);
         }
         
         .message {
@@ -322,22 +320,18 @@
         let musicPlayed = false;
         let remainingMessages = [...messages];
         let musicPreloaded = false;
-        let progressTimer = null; // 进度动画定时器
+        let progressTimer = null;
 
 
-        // 页面加载后自动启动：15秒进度动画 + 实际音频预载
         window.addEventListener('load', function() {
-            start15sProgress(); // 启动15秒进度动画
-            fetchAudio("missyouhani.mp3"); // 并行预载音频
+            start15sProgress();
+            fetchAudio("missyouhani.mp3");
         });
 
 
-        /**
-         * 核心：15秒内完成进度条动画（用户感知加载时间压缩到15秒）
-         */
         function start15sProgress() {
-            const totalTime = 15000; // 15秒
-            const stepTime = 100; // 每100ms更新一次进度
+            const totalTime = 15000;
+            const stepTime = 100;
             const totalSteps = totalTime / stepTime;
             let currentStep = 0;
 
@@ -346,7 +340,6 @@
                 const percent = Math.min(Math.floor((currentStep / totalSteps) * 100), 100);
                 updateProgress(percent);
 
-                // 15秒到了，强制拉满进度并启用按钮
                 if (currentStep >= totalSteps) {
                     clearInterval(progressTimer);
                     updateProgress(100);
@@ -357,9 +350,6 @@
         }
 
 
-        /**
-         * 实际音频预载（并行执行）
-         */
         function fetchAudio(audioUrl) {
             fetch(audioUrl)
                 .then(response => {
@@ -367,7 +357,6 @@
                     return response.blob();
                 })
                 .then(blob => {
-                    // 实际预载完成：立即拉满进度，启用按钮（提前结束等待）
                     clearInterval(progressTimer);
                     const audioUrl = URL.createObjectURL(blob);
                     bgMusic.src = audioUrl;
@@ -377,7 +366,6 @@
                     blessingBtn.textContent = "点击接收祝福";
                 })
                 .catch(err => {
-                    // 预载失败：强制结束进度动画
                     clearInterval(progressTimer);
                     updateProgress(100);
                     blessingBtn.disabled = false;
@@ -387,9 +375,6 @@
         }
 
 
-        /**
-         * 更新进度条+爱心位置
-         */
         function updateProgress(percent) {
             progressFill.style.width = `${percent}%`;
             progressHeart.style.left = `${percent}%`;
@@ -397,17 +382,30 @@
         }
 
 
-        // 以下是原祝福流程逻辑（无修改）
-        function startBlessings() {
-            if (!musicPlayed) {
-                bgMusic.play().catch(err => {
-                    alert('请点击页面空白处后再尝试~');
+        // 核心修复：将音频播放绑定到按钮的点击事件中（符合浏览器自动播放政策）
+        blessingBtn.addEventListener('click', function() {
+            if (blessingBtn.disabled) return;
+            
+            // 先尝试播放音乐（用户主动点击触发，不会被拦截）
+            if (!musicPlayed && musicPreloaded) {
+                bgMusic.play().then(() => {
+                    musicPlayed = true;
+                    startBlessings(); // 播放成功后再启动祝福
+                }).catch(err => {
+                    alert('请允许音频播放后再尝试~');
                     blessingBtn.disabled = false;
                     blessingBtn.textContent = "点击接收祝福";
                 });
-                musicPlayed = true;
+            } else {
+                startBlessings();
             }
 
+            blessingBtn.disabled = true;
+            blessingBtn.textContent = "加载中...🎵";
+        });
+
+
+        function startBlessings() {
             for (let i = 0; i < 4 && remainingMessages.length > 0; i++) {
                 createRandomBlessing();
             }
@@ -430,9 +428,7 @@
                     blessingBtn.textContent = "再次接收祝福";
                     remainingMessages = [...messages];
                     musicPlayed = false;
-                    musicPreloaded = false;
                     updateProgress(0);
-                    // 再次接收时重新启动15秒进度+预载
                     start15sProgress();
                     fetchAudio("missyouhani.mp3");
                 }, 1000);
@@ -488,14 +484,6 @@
                 }
             }, 1000);
         }
-
-
-        blessingBtn.addEventListener('click', function() {
-            if (blessingBtn.disabled) return;
-            blessingBtn.disabled = true;
-            blessingBtn.textContent = "加载中...🎵";
-            startBlessings();
-        });
     </script>
 </body>
 </html>
