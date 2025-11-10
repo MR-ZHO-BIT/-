@@ -246,9 +246,8 @@
             <p class="message">点击页面任意位置，开始加载音乐~</p>
             <button class="btn" id="blessingBtn" disabled>音乐加载中（0）</button>
             <p class="footer">专属于你的祝福程序</p>
-            <!-- 音频标签：确保src和HTML文件同目录 -->
+            <!-- 音频标签（后续用fetch预载后赋值） -->
             <audio id="bgMusic" loop>
-                <source src="missyouhani.mp3" type="audio/mpeg">
                 您的浏览器不支持音频播放
              
         </div>
@@ -321,71 +320,69 @@
         let musicPlayed = false;
         let remainingMessages = [...messages];
         let musicPreloaded = false;
-        let preloadAudio = null;
 
 
-        // 核心修复：用户点击页面后才开始加载音频（避开浏览器拦截）
+        // GitHub Pages环境：用fetch预载音频（稳定获取进度）
         window.addEventListener('click', function initMusicLoad() {
-            // 只执行一次点击触发
             window.removeEventListener('click', initMusicLoad);
-            // 开始预载音乐
-            preloadMusic();
-            // 更新初始进度
-            updateProgress(0);
+            fetchAudio("missyouhani.mp3"); // 音频路径（根目录）
         });
 
 
         /**
-         * 预载音乐 + 同步进度条
+         * 用fetch预载音频，稳定获取加载进度
+         * @param {string} audioUrl 音频路径
          */
-        function preloadMusic() {
-            // 检查音频路径是否存在
-            if (!bgMusic.src) {
-                alert('音频文件未找到，请检查路径~');
-                return;
-            }
+        function fetchAudio(audioUrl) {
+            fetch(audioUrl)
+                .then(response => {
+                    // 检查响应是否成功
+                    if (!response.ok) throw new Error("音频加载失败");
+                    // 获取音频总大小
+                    const totalSize = parseInt(response.headers.get('content-length'), 10);
+                    const reader = response.body.getReader();
+                    let loadedSize = 0;
 
-            // 创建预载音频对象
-            preloadAudio = new Audio(bgMusic.src);
-            preloadAudio.preload = "auto"; // 强制开启预载
+                    // 读取音频数据
+                    return new ReadableStream({
+                        start(controller) {
+                            function read() {
+                                reader.read().then(({ done, value }) => {
+                                    if (done) {
+                                        controller.close();
+                                        return;
+                                    }
+                                    // 累计已加载大小，计算进度
+                                    loadedSize += value.length;
+                                    const percent = Math.floor((loadedSize / totalSize) * 100);
+                                    updateProgress(percent); // 同步进度条
 
-            // 先获取音频时长（解决duration为NaN的问题）
-            preloadAudio.addEventListener('loadedmetadata', function() {
-                console.log("音频时长已获取：", preloadAudio.duration);
-            });
-
-            // 监听音乐加载进度（实时同步到进度条）
-            preloadAudio.addEventListener('progress', function() {
-                // 确保已缓冲数据和时长都存在
-                if (preloadAudio.buffered.length > 0 && preloadAudio.duration) {
-                    const loaded = preloadAudio.buffered.end(preloadAudio.buffered.length - 1);
-                    const total = preloadAudio.duration;
-                    const percent = Math.floor((loaded / total) * 100);
-                    // 更新进度条和按钮文字
-                    updateProgress(percent);
-                }
-            });
-
-            // 音乐预载完成（可无卡顿播放）
-            preloadAudio.addEventListener('canplaythrough', function() {
-                musicPreloaded = true;
-                updateProgress(100); // 进度条拉满
-                blessingBtn.disabled = false;
-                blessingBtn.textContent = "点击接收祝福";
-                preloadAudio = null; // 释放内存
-            });
-
-            // 音乐加载失败（直接拉满进度，不影响祝福）
-            preloadAudio.addEventListener('error', function() {
-                updateProgress(100);
-                blessingBtn.disabled = false;
-                blessingBtn.textContent = "点击接收祝福";
-                alert('音乐加载失败~ 但可以正常接收祝福哦 ❤️');
-                preloadAudio = null;
-            });
-
-            // 手动触发加载
-            preloadAudio.load();
+                                    controller.enqueue(value);
+                                    read();
+                                });
+                            }
+                            read();
+                        }
+                    });
+                })
+                .then(stream => new Response(stream))
+                .then(response => response.blob())
+                .then(blob => {
+                    // 预载完成：将Blob转为URL赋值给音频标签
+                    const audioUrl = URL.createObjectURL(blob);
+                    bgMusic.src = audioUrl;
+                    musicPreloaded = true;
+                    updateProgress(100); // 进度条拉满
+                    blessingBtn.disabled = false;
+                    blessingBtn.textContent = "点击接收祝福";
+                })
+                .catch(err => {
+                    // 加载失败：强制拉满进度，不影响祝福
+                    updateProgress(100);
+                    blessingBtn.disabled = false;
+                    blessingBtn.textContent = "点击接收祝福";
+                    alert('音乐加载失败~ 但可以正常接收祝福哦 ❤️');
+                });
         }
 
 
@@ -404,7 +401,7 @@
          * 启动祝福流程
          */
         function startBlessings() {
-            // 播放音乐（已预载，无卡顿）
+            // 播放音乐（已预载）
             if (!musicPlayed) {
                 bgMusic.play().catch(err => {
                     alert('请点击页面空白处后再尝试~');
@@ -445,7 +442,7 @@
                     // 再次接收需用户点击页面触发
                     window.addEventListener('click', function reInitLoad() {
                         window.removeEventListener('click', reInitLoad);
-                        preloadMusic();
+                        fetchAudio("missyouhani.mp3");
                     });
                 }, 1000);
             }, 240000);
