@@ -83,12 +83,13 @@
             z-index: 2;
         }
         
+        /* 进度条优化：爱心与进度条完全贴合 */
         .progress-bar {
             width: 100%;
             max-width: 300px;
-            height: 20px;
+            height: 24px; /* 微调高度让爱心更贴合 */
             background: rgba(255, 255, 255, 0.5);
-            border-radius: 10px;
+            border-radius: 12px;
             margin: 20px 0;
             overflow: hidden;
             position: relative;
@@ -100,16 +101,20 @@
             left: 0;
             height: 100%;
             background: #ffccd5;
-            border-radius: 10px;
+            border-radius: 12px;
             width: 0;
         }
+        /* 爱心与进度条融合：高度/位置完全匹配，无空隙 */
         .progress-heart {
             position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
+            top: 0;
             left: 0;
-            font-size: 16px;
+            height: 100%;
+            line-height: 24px; /* 与进度条高度一致 */
+            font-size: 18px; /* 适配进度条高度 */
+            color: #ff4a6e;
             z-index: 3;
+            transform: translateX(-2px); /* 微调贴合进度条边缘 */
         }
         
         .message {
@@ -243,10 +248,9 @@
                 <div class="progress-fill" id="progressFill"></div>
                 <div class="progress-heart" id="progressHeart">❤️</div>
             </div>
-            <p class="message">正在自动加载音乐~</p>
+            <p class="message">正在加载音乐~</p>
             <button class="btn" id="blessingBtn" disabled>音乐加载中（0）</button>
             <p class="footer">专属于你的祝福程序</p>
-            <!-- 音频标签（预载后赋值） -->
             <audio id="bgMusic" loop>
                 您的浏览器不支持音频播放
              
@@ -288,7 +292,7 @@
             "今天也要好好爱自己 🌸",
             "坐车时记得把窗关好，少吹风就少头晕🙃",
             "寝室消毒时，记得把入口的东西收好😱",
-            "经常不读不回，过分😡",
+            "经常已读不回，过分😡",
             "早上起不来的话可以多调几个闹钟，然后叮叮的响😁",
             "没精神的话用凉水摸一下脸颊，精神百倍😁",
             "被插队也被一个人生闷气，这样不好😁",
@@ -318,51 +322,53 @@
         let musicPlayed = false;
         let remainingMessages = [...messages];
         let musicPreloaded = false;
+        let progressTimer = null; // 进度动画定时器
 
 
-        // 核心修改：页面加载完成后自动启动音乐预载（无需点击）
+        // 页面加载后自动启动：15秒进度动画 + 实际音频预载
         window.addEventListener('load', function() {
-            fetchAudio("missyouhani.mp3");
+            start15sProgress(); // 启动15秒进度动画
+            fetchAudio("missyouhani.mp3"); // 并行预载音频
         });
 
 
         /**
-         * 优化预载流程（加快加载感知）
-         * 简化stream处理，直接基于fetch进度计算，减少冗余步骤
+         * 核心：15秒内完成进度条动画（用户感知加载时间压缩到15秒）
+         */
+        function start15sProgress() {
+            const totalTime = 15000; // 15秒
+            const stepTime = 100; // 每100ms更新一次进度
+            const totalSteps = totalTime / stepTime;
+            let currentStep = 0;
+
+            progressTimer = setInterval(() => {
+                currentStep++;
+                const percent = Math.min(Math.floor((currentStep / totalSteps) * 100), 100);
+                updateProgress(percent);
+
+                // 15秒到了，强制拉满进度并启用按钮
+                if (currentStep >= totalSteps) {
+                    clearInterval(progressTimer);
+                    updateProgress(100);
+                    blessingBtn.disabled = false;
+                    blessingBtn.textContent = "点击接收祝福";
+                }
+            }, stepTime);
+        }
+
+
+        /**
+         * 实际音频预载（并行执行）
          */
         function fetchAudio(audioUrl) {
             fetch(audioUrl)
                 .then(response => {
                     if (!response.ok) throw new Error("音频加载失败");
-                    const totalSize = parseInt(response.headers.get('content-length'), 10) || 1;
-                    const reader = response.body.getReader();
-                    let loadedSize = 0;
-
-                    // 简化读取逻辑，加快进度反馈
-                    return new ReadableStream({
-                        start(controller) {
-                            const readChunk = () => {
-                                reader.read().then(({ done, value }) => {
-                                    if (done) {
-                                        controller.close();
-                                        return;
-                                    }
-                                    loadedSize += value.length;
-                                    const percent = Math.min(Math.floor((loadedSize / totalSize) * 100), 100);
-                                    updateProgress(percent); // 实时同步进度
-                                    
-                                    controller.enqueue(value);
-                                    readChunk(); // 无延迟继续读取，加快加载流程
-                                });
-                            };
-                            readChunk();
-                        }
-                    });
+                    return response.blob();
                 })
-                .then(stream => new Response(stream))
-                .then(res => res.blob())
                 .then(blob => {
-                    // 预载完成后立即赋值音频，减少等待
+                    // 实际预载完成：立即拉满进度，启用按钮（提前结束等待）
+                    clearInterval(progressTimer);
                     const audioUrl = URL.createObjectURL(blob);
                     bgMusic.src = audioUrl;
                     musicPreloaded = true;
@@ -371,6 +377,8 @@
                     blessingBtn.textContent = "点击接收祝福";
                 })
                 .catch(err => {
+                    // 预载失败：强制结束进度动画
+                    clearInterval(progressTimer);
                     updateProgress(100);
                     blessingBtn.disabled = false;
                     blessingBtn.textContent = "点击接收祝福";
@@ -379,6 +387,9 @@
         }
 
 
+        /**
+         * 更新进度条+爱心位置
+         */
         function updateProgress(percent) {
             progressFill.style.width = `${percent}%`;
             progressHeart.style.left = `${percent}%`;
@@ -386,6 +397,7 @@
         }
 
 
+        // 以下是原祝福流程逻辑（无修改）
         function startBlessings() {
             if (!musicPlayed) {
                 bgMusic.play().catch(err => {
@@ -420,7 +432,8 @@
                     musicPlayed = false;
                     musicPreloaded = false;
                     updateProgress(0);
-                    // 再次接收时自动预载
+                    // 再次接收时重新启动15秒进度+预载
+                    start15sProgress();
                     fetchAudio("missyouhani.mp3");
                 }, 1000);
             }, 240000);
@@ -486,4 +499,3 @@
     </script>
 </body>
 </html>
-
