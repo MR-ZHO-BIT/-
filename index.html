@@ -94,17 +94,6 @@
             position: relative;
             z-index: 2;
         }
-        /* 新增：进度填充层 */
-        .progress-fill {
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 100%;
-            background: #ffccd5; /* 浅粉色填充，呼应主题 */
-            border-radius: 10px;
-            transition: width 3s linear; /* 与爱心移动同步速度 */
-            width: 0; /* 初始宽度0 */
-        }
         .progress-heart {
             position: absolute;
             top: 50%;
@@ -112,13 +101,9 @@
             left: 0;
             transition: left 3s linear;
             font-size: 16px;
-            z-index: 3; /* 确保爱心在填充层上方 */
         }
         .progress-bar.loaded .progress-heart {
-            left: calc(100% - 1em); /* 爱心移到末端 */
-        }
-        .progress-bar.loaded .progress-fill {
-            width: 100%; /* 填充层同步拉满 */
+            left: calc(100% - 1em);
         }
         
         .message {
@@ -248,9 +233,7 @@
             <h1>给最坚强的知意 ❤️</h1>
             <div class="hearts">❤️ ❤️ ❤️ ❤️ ❤️</div>
             <div class="heart-emoji floating">❤️</div>
-            <!-- 进度条新增填充层 -->
             <div class="progress-bar">
-                <div class="progress-fill"></div> <!-- 爱心身后的填充背景 -->
                 <div class="progress-heart">❤️</div>
             </div>
             <p class="message">点击下面的按钮，接收我的祝福与音乐</p >
@@ -334,7 +317,7 @@
 
         window.addEventListener('load', function() {
             const progressBar = document.querySelector('.progress-bar');
-            progressBar.classList.add('loaded'); // 页面加载后触发进度动画
+            progressBar.classList.add('loaded');
         });
 
         // 持续1分36秒、初始4个弹窗、每3秒随机1-3个弹窗
@@ -364,7 +347,7 @@
                     createRandomBlessing();
                 }
             }, 3000);
-            // 4分钟后停止弹窗（原240秒，可按需调整）
+            // 1分钟后停止弹窗
             setTimeout(() => {
                 clearInterval(interval);
                 setTimeout(() => {
@@ -406,4 +389,26 @@
                 popup.style.transform = 'translateY(20px)';
                 setTimeout(() => {
                     document.body.removeChild(popup);
-                },
+                }, 500);
+            });
+
+            let remainingTime = 10; // 弹窗持续时间改为10秒
+            const countdown = popup.querySelector('.popup-countdown');
+            const countdownTimer = setInterval(() => {
+                remainingTime--;
+                countdown.textContent = `⏳ ${remainingTime}秒后关闭`;
+                if (remainingTime <= 0) {
+                    clearInterval(countdownTimer);
+                    popup.style.opacity = '0';
+                    popup.style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        document.body.removeChild(popup);
+                    }, 500);
+                }
+            }, 1000);
+        }
+
+        // 按钮点击事件（添加加载状态，避免重复点击）
+        blessingBtn.addEventListener('click', function() {
+            if (blessingBtn.disabled) return;
+            blessingBtn.disabled = true;
