@@ -157,11 +157,6 @@
             z-index: 1000;
         }
         
-        .popup-content.active {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        
         .popup-title {
             color: #ff6b6b;
             font-size: 20px;
@@ -308,7 +303,7 @@
         const bgMusic = document.getElementById('bgMusic');
         let interval = null;
         let musicPlayed = false;
-        let remainingMessages = [...messages]; // 剩余未显示的祝福数组
+        let remainingMessages = [...messages]; // 存储未显示的祝福，避免重复
 
         // 音频加载失败兜底
         bgMusic.addEventListener('error', function() {
@@ -320,7 +315,7 @@
             progressBar.classList.add('loaded');
         });
 
-        // 持续1分36秒、初始4个弹窗、每3秒随机1-3个弹窗
+        // 开始发放祝福
         function startBlessings() {
             if (!musicPlayed) {
                 bgMusic.play().catch(err => {
@@ -336,6 +331,7 @@
             for (let i = 0; i < 4 && remainingMessages.length > 0; i++) {
                 createRandomBlessing();
             }
+
             // 每3秒随机生成1-3个新弹窗（剩余祝福足够时）
             interval = setInterval(() => {
                 if (remainingMessages.length === 0) {
@@ -347,17 +343,19 @@
                     createRandomBlessing();
                 }
             }, 3000);
-            // 1分钟后停止弹窗
+
+            // 4分钟后停止弹窗，重置状态支持再次点击
             setTimeout(() => {
                 clearInterval(interval);
                 setTimeout(() => {
                     blessingBtn.disabled = false;
                     blessingBtn.textContent = "再次接收祝福";
-                    remainingMessages = [...messages]; // 重置祝福数组，支持再次接收
+                    remainingMessages = [...messages]; // 重置未显示祝福数组
                 }, 1000);
             }, 240000);
         }
 
+        // 创建单个祝福弹窗
         function createRandomBlessing() {
             if (remainingMessages.length === 0) return;
 
@@ -365,7 +363,7 @@
             const popup = template.querySelector('.popup-content').cloneNode(true);
             document.body.appendChild(popup);
 
-            // 随机选择并移除已选祝福（确保不重复）
+            // 随机选择并移除已选祝福（核心：避免重复）
             const randomMsgIndex = Math.floor(Math.random() * remainingMessages.length);
             const selectedMsg = remainingMessages.splice(randomMsgIndex, 1)[0];
             const randomColorIndex = Math.floor(Math.random() * colors.length);
@@ -373,16 +371,19 @@
             popup.querySelector('.popup-message').textContent = selectedMsg;
             popup.style.backgroundColor = colors[randomColorIndex];
 
+            // 随机位置
             const top = Math.floor(Math.random() * (window.innerHeight - 200)) + 'px';
             const left = Math.floor(Math.random() * (window.innerWidth - 300)) + 'px';
             popup.style.top = top;
             popup.style.left = left;
 
+            // 显示动画
             setTimeout(() => {
                 popup.style.opacity = '1';
                 popup.style.transform = 'translateY(0)';
             }, 10);
 
+            // 关闭按钮事件
             const closeBtn = popup.querySelector('.popup-close');
             closeBtn.addEventListener('click', () => {
                 popup.style.opacity = '0';
@@ -392,7 +393,8 @@
                 }, 500);
             });
 
-            let remainingTime = 10; // 弹窗持续时间改为10秒
+            // 10秒自动关闭（加长2秒核心改动）
+            let remainingTime = 10;
             const countdown = popup.querySelector('.popup-countdown');
             const countdownTimer = setInterval(() => {
                 remainingTime--;
@@ -408,7 +410,9 @@
             }, 1000);
         }
 
-        // 按钮点击事件（添加加载状态，避免重复点击）
+        // 按钮点击事件
         blessingBtn.addEventListener('click', function() {
             if (blessingBtn.disabled) return;
             blessingBtn.disabled = true;
+            blessingBtn.textContent = "加载中...🎵";
+            startBlessings();
