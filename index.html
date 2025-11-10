@@ -243,9 +243,10 @@
                 <div class="progress-fill" id="progressFill"></div>
                 <div class="progress-heart" id="progressHeart">❤️</div>
             </div>
-            <p class="message">点击下面的按钮，接收我的祝福与音乐</p>
+            <p class="message">点击页面任意位置，开始加载音乐~</p>
             <button class="btn" id="blessingBtn" disabled>音乐加载中（0）</button>
             <p class="footer">专属于你的祝福程序</p>
+            <!-- 音频标签：确保src和HTML文件同目录 -->
             <audio id="bgMusic" loop>
                 <source src="missyouhani.mp3" type="audio/mpeg">
                 您的浏览器不支持音频播放
@@ -268,6 +269,7 @@
     </div>
 
     <script>
+        // 祝福消息列表
         const messages = [
             "也不知道你现在在干啥 😊",
             "天凉了，得多穿点，你知道的~ ❄️",
@@ -310,6 +312,7 @@
             "#C5E0D8", "#FFB8C6", "#B8DFD8", "#FFD3B6", "#D6EADF"
         ];
 
+        // 元素获取
         const blessingBtn = document.getElementById('blessingBtn');
         const bgMusic = document.getElementById('bgMusic');
         const progressFill = document.getElementById('progressFill');
@@ -318,104 +321,105 @@
         let musicPlayed = false;
         let remainingMessages = [...messages];
         let musicPreloaded = false;
-        let preloadAudio = null; // 存储预载音频对象，方便监听进度
+        let preloadAudio = null;
 
-        // 页面加载后启动音乐预载+同步进度条
-        window.addEventListener('load', function() {
-            preloadMusic(); // 启动音乐预载
-            updateProgress(0); // 初始进度0
+
+        // 核心修复：用户点击页面后才开始加载音频（避开浏览器拦截）
+        window.addEventListener('click', function initMusicLoad() {
+            // 只执行一次点击触发
+            window.removeEventListener('click', initMusicLoad);
+            // 开始预载音乐
+            preloadMusic();
+            // 更新初始进度
+            updateProgress(0);
         });
 
-        // 音乐预载函数：监听加载进度，同步到进度条
+
+        /**
+         * 预载音乐 + 同步进度条
+         */
         function preloadMusic() {
-            if (bgMusic.src) {
-                preloadAudio = new Audio(bgMusic.src);
-                
-                // 监听音乐加载进度（核心：实时获取预载进度）
-                preloadAudio.addEventListener('progress', function() {
-                    if (preloadAudio.buffered.length > 0) {
-                        // 已加载字节数 / 总字节数 = 加载进度（0~1）
-                        const loaded = preloadAudio.buffered.end(preloadAudio.buffered.length - 1);
-                        const total = preloadAudio.duration || 1; // 兼容duration未获取的情况
-                        const progress = Math.min(loaded / total, 1);
-                        const percent = Math.floor(progress * 100);
-                        updateProgress(percent); // 同步更新进度条
-                    }
-                });
-
-                // 音乐预载完成（可无卡顿播放）
-                preloadAudio.addEventListener('canplaythrough', function() {
-                    musicPreloaded = true;
-                    updateProgress(100); // 进度条拉满
-                    waitForMusicPreload().then(() => {
-                        blessingBtn.disabled = false;
-                        blessingBtn.textContent = "点击接收祝福";
-                    });
-                    preloadAudio = null; // 释放内存
-                });
-
-                // 音乐加载失败：进度条仍拉满，不影响流程
-                preloadAudio.addEventListener('error', function() {
-                    updateProgress(100);
-                    waitForMusicPreload().then(() => {
-                        blessingBtn.disabled = false;
-                        blessingBtn.textContent = "点击接收祝福";
-                    });
-                    alert('音乐加载失败～ 不影响祝福接收，愿你天天开心呀 ❤️');
-                    preloadAudio = null;
-                });
-
-                preloadAudio.load(); // 手动触发加载
+            // 检查音频路径是否存在
+            if (!bgMusic.src) {
+                alert('音频文件未找到，请检查路径~');
+                return;
             }
+
+            // 创建预载音频对象
+            preloadAudio = new Audio(bgMusic.src);
+            preloadAudio.preload = "auto"; // 强制开启预载
+
+            // 先获取音频时长（解决duration为NaN的问题）
+            preloadAudio.addEventListener('loadedmetadata', function() {
+                console.log("音频时长已获取：", preloadAudio.duration);
+            });
+
+            // 监听音乐加载进度（实时同步到进度条）
+            preloadAudio.addEventListener('progress', function() {
+                // 确保已缓冲数据和时长都存在
+                if (preloadAudio.buffered.length > 0 && preloadAudio.duration) {
+                    const loaded = preloadAudio.buffered.end(preloadAudio.buffered.length - 1);
+                    const total = preloadAudio.duration;
+                    const percent = Math.floor((loaded / total) * 100);
+                    // 更新进度条和按钮文字
+                    updateProgress(percent);
+                }
+            });
+
+            // 音乐预载完成（可无卡顿播放）
+            preloadAudio.addEventListener('canplaythrough', function() {
+                musicPreloaded = true;
+                updateProgress(100); // 进度条拉满
+                blessingBtn.disabled = false;
+                blessingBtn.textContent = "点击接收祝福";
+                preloadAudio = null; // 释放内存
+            });
+
+            // 音乐加载失败（直接拉满进度，不影响祝福）
+            preloadAudio.addEventListener('error', function() {
+                updateProgress(100);
+                blessingBtn.disabled = false;
+                blessingBtn.textContent = "点击接收祝福";
+                alert('音乐加载失败~ 但可以正常接收祝福哦 ❤️');
+                preloadAudio = null;
+            });
+
+            // 手动触发加载
+            preloadAudio.load();
         }
 
-        // 同步更新进度条和按钮文字
+
+        /**
+         * 更新进度条+按钮文字
+         * @param {number} percent 加载百分比
+         */
         function updateProgress(percent) {
             progressFill.style.width = `${percent}%`;
             progressHeart.style.left = `${percent}%`;
             blessingBtn.textContent = `音乐加载中（${percent}）`;
         }
 
-        // 等待音乐预载完成（兼容加载完成后直接放行）
-        function waitForMusicPreload() {
-            return new Promise((resolve) => {
-                if (musicPreloaded) {
-                    resolve();
-                    return;
-                }
-                // 轮询检查预载状态，最多等8秒（避免卡住）
-                const checkTimer = setInterval(() => {
-                    if (musicPreloaded) {
-                        clearInterval(checkTimer);
-                        resolve();
-                    }
-                }, 100);
-                setTimeout(() => {
-                    clearInterval(checkTimer);
-                    resolve(); // 超时也放行
-                }, 8000);
-            });
-        }
 
-        bgMusic.addEventListener('error', function() {
-            alert('音乐加载失败～ 不影响祝福接收，愿你天天开心呀 ❤️');
-        });
-
+        /**
+         * 启动祝福流程
+         */
         function startBlessings() {
+            // 播放音乐（已预载，无卡顿）
             if (!musicPlayed) {
                 bgMusic.play().catch(err => {
-                    console.log('播放触发需要用户交互：', err);
-                    alert('请点击页面空白处后再尝试接收祝福～');
+                    alert('请点击页面空白处后再尝试~');
                     blessingBtn.disabled = false;
                     blessingBtn.textContent = "点击接收祝福";
                 });
                 musicPlayed = true;
             }
 
+            // 先弹出4条祝福
             for (let i = 0; i < 4 && remainingMessages.length > 0; i++) {
                 createRandomBlessing();
             }
 
+            // 每隔3秒随机弹出1-3条祝福
             interval = setInterval(() => {
                 if (remainingMessages.length === 0) {
                     clearInterval(interval);
@@ -427,6 +431,7 @@
                 }
             }, 3000);
 
+            // 4分钟后结束祝福流程
             setTimeout(() => {
                 clearInterval(interval);
                 setTimeout(() => {
@@ -435,38 +440,52 @@
                     remainingMessages = [...messages];
                     musicPlayed = false;
                     musicPreloaded = false;
-                    
-                    // 重置进度条+重新预载音乐（再次同步）
                     updateProgress(0);
-                    preloadMusic();
+                    
+                    // 再次接收需用户点击页面触发
+                    window.addEventListener('click', function reInitLoad() {
+                        window.removeEventListener('click', reInitLoad);
+                        preloadMusic();
+                    });
                 }, 1000);
             }, 240000);
         }
 
+
+        /**
+         * 创建随机祝福弹窗
+         */
         function createRandomBlessing() {
             if (remainingMessages.length === 0) return;
 
+            // 克隆弹窗模板
             const template = document.querySelector('.popup-template');
             const popup = template.querySelector('.popup-content').cloneNode(true);
             document.body.appendChild(popup);
 
+            // 随机选一条祝福
             const randomMsgIndex = Math.floor(Math.random() * remainingMessages.length);
             const selectedMsg = remainingMessages.splice(randomMsgIndex, 1)[0];
+            // 随机选背景色
             const randomColorIndex = Math.floor(Math.random() * colors.length);
 
+            // 设置弹窗内容
             popup.querySelector('.popup-message').textContent = selectedMsg;
             popup.style.backgroundColor = colors[randomColorIndex];
 
+            // 随机位置
             const top = Math.floor(Math.random() * (window.innerHeight - 200)) + 'px';
             const left = Math.floor(Math.random() * (window.innerWidth - 300)) + 'px';
             popup.style.top = top;
             popup.style.left = left;
 
+            // 淡入动画
             setTimeout(() => {
                 popup.style.opacity = '1';
                 popup.style.transform = 'translateY(0)';
             }, 10);
 
+            // 关闭按钮事件
             const closeBtn = popup.querySelector('.popup-close');
             closeBtn.addEventListener('click', () => {
                 popup.style.opacity = '0';
@@ -476,6 +495,7 @@
                 }, 500);
             });
 
+            // 倒计时自动关闭
             let remainingTime = 10;
             const countdown = popup.querySelector('.popup-countdown');
             const countdownTimer = setInterval(() => {
@@ -492,6 +512,8 @@
             }, 1000);
         }
 
+
+        // 按钮点击事件
         blessingBtn.addEventListener('click', function() {
             if (blessingBtn.disabled) return;
             blessingBtn.disabled = true;
