@@ -94,6 +94,17 @@
             position: relative;
             z-index: 2;
         }
+        /* 新增：进度填充层 */
+        .progress-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: #ffccd5; /* 浅粉色填充，呼应主题 */
+            border-radius: 10px;
+            transition: width 3s linear; /* 与爱心移动同步速度 */
+            width: 0; /* 初始宽度0 */
+        }
         .progress-heart {
             position: absolute;
             top: 50%;
@@ -101,9 +112,13 @@
             left: 0;
             transition: left 3s linear;
             font-size: 16px;
+            z-index: 3; /* 确保爱心在填充层上方 */
         }
         .progress-bar.loaded .progress-heart {
-            left: calc(100% - 1em);
+            left: calc(100% - 1em); /* 爱心移到末端 */
+        }
+        .progress-bar.loaded .progress-fill {
+            width: 100%; /* 填充层同步拉满 */
         }
         
         .message {
@@ -233,7 +248,9 @@
             <h1>给最坚强的知意 ❤️</h1>
             <div class="hearts">❤️ ❤️ ❤️ ❤️ ❤️</div>
             <div class="heart-emoji floating">❤️</div>
+            <!-- 进度条新增填充层 -->
             <div class="progress-bar">
+                <div class="progress-fill"></div> <!-- 爱心身后的填充背景 -->
                 <div class="progress-heart">❤️</div>
             </div>
             <p class="message">点击下面的按钮，接收我的祝福与音乐</p >
@@ -257,7 +274,7 @@
             <div class="popup-title">✨ 小粥同学的祝福 ✨</div>
             <div class="popup-message"></div>
             <button class="popup-close">❤️ 关闭</button>
-            <div class="popup-countdown">⏳ 8秒后关闭</div>
+            <div class="popup-countdown">⏳ 10秒后关闭</div>
         </div>
     </div>
 
@@ -307,7 +324,8 @@
         const blessingBtn = document.getElementById('blessingBtn');
         const bgMusic = document.getElementById('bgMusic');
         let interval = null;
-        let musicPlayed = false; 
+        let musicPlayed = false;
+        let remainingMessages = [...messages]; // 剩余未显示的祝福数组
 
         // 音频加载失败兜底
         bgMusic.addEventListener('error', function() {
@@ -316,7 +334,7 @@
 
         window.addEventListener('load', function() {
             const progressBar = document.querySelector('.progress-bar');
-            progressBar.classList.add('loaded');
+            progressBar.classList.add('loaded'); // 页面加载后触发进度动画
         });
 
         // 持续1分36秒、初始4个弹窗、每3秒随机1-3个弹窗
@@ -331,36 +349,45 @@
                 musicPlayed = true;
             }
 
-            // 初始生成4个随机弹窗
-            for (let i = 0; i < 4; i++) {
+            // 初始生成4个不重复弹窗（剩余祝福足够时）
+            for (let i = 0; i < 4 && remainingMessages.length > 0; i++) {
                 createRandomBlessing();
             }
-            // 每3秒随机生成1-3个新弹窗
+            // 每3秒随机生成1-3个新弹窗（剩余祝福足够时）
             interval = setInterval(() => {
-                const randomPopupNum = Math.floor(Math.random() * 3) + 1;
-                for (let i = 0; i < randomPopupNum; i++) {
+                if (remainingMessages.length === 0) {
+                    clearInterval(interval);
+                    return;
+                }
+                const maxPopup = Math.min(Math.floor(Math.random() * 3) + 1, remainingMessages.length);
+                for (let i = 0; i < maxPopup; i++) {
                     createRandomBlessing();
                 }
             }, 3000);
-            // 1分钟后停止弹窗
+            // 4分钟后停止弹窗（原240秒，可按需调整）
             setTimeout(() => {
                 clearInterval(interval);
                 setTimeout(() => {
                     blessingBtn.disabled = false;
                     blessingBtn.textContent = "再次接收祝福";
+                    remainingMessages = [...messages]; // 重置祝福数组，支持再次接收
                 }, 1000);
             }, 240000);
         }
 
         function createRandomBlessing() {
+            if (remainingMessages.length === 0) return;
+
             const template = document.querySelector('.popup-template');
             const popup = template.querySelector('.popup-content').cloneNode(true);
             document.body.appendChild(popup);
 
-            const randomMsgIndex = Math.floor(Math.random() * messages.length);
+            // 随机选择并移除已选祝福（确保不重复）
+            const randomMsgIndex = Math.floor(Math.random() * remainingMessages.length);
+            const selectedMsg = remainingMessages.splice(randomMsgIndex, 1)[0];
             const randomColorIndex = Math.floor(Math.random() * colors.length);
 
-            popup.querySelector('.popup-message').textContent = messages[randomMsgIndex];
+            popup.querySelector('.popup-message').textContent = selectedMsg;
             popup.style.backgroundColor = colors[randomColorIndex];
 
             const top = Math.floor(Math.random() * (window.innerHeight - 200)) + 'px';
@@ -379,34 +406,4 @@
                 popup.style.transform = 'translateY(20px)';
                 setTimeout(() => {
                     document.body.removeChild(popup);
-                }, 500);
-            });
-
-            let remaining = 8;
-            const countdown = popup.querySelector('.popup-countdown');
-            const countdownTimer = setInterval(() => {
-                remaining--;
-                countdown.textContent = `⏳ ${remaining}秒后关闭`;
-                if (remaining <= 0) {
-                    clearInterval(countdownTimer);
-                    popup.style.opacity = '0';
-                    popup.style.transform = 'translateY(20px)';
-                    setTimeout(() => {
-                        document.body.removeChild(popup);
-                    }, 500);
-                }
-            }, 1000);
-        }
-
-        // 按钮点击事件（添加加载状态，避免重复点击）
-        blessingBtn.addEventListener('click', function() {
-            if (blessingBtn.disabled) return;
-            blessingBtn.disabled = true;
-            blessingBtn.textContent = "加载中...🎵";
-            startBlessings();
-        });
-    </script>
-</body>
-</html>
-
-
+                },
