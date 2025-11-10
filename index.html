@@ -244,13 +244,12 @@
                 <div class="progress-heart" id="progressHeart">❤️</div>
             </div>
             <p class="message">点击下面的按钮，接收我的祝福与音乐</p>
-            <!-- 按钮初始文字改为进度提示 -->
-            <button class="btn" id="blessingBtn" disabled>进度条加载中（0%）</button>
+            <button class="btn" id="blessingBtn" disabled>音乐加载中（0）</button>
             <p class="footer">专属于你的祝福程序</p>
-            <audio id="bgMusic" loop preload="metadata">
+            <audio id="bgMusic" loop>
                 <source src="missyouhani.mp3" type="audio/mpeg">
                 您的浏览器不支持音频播放
-            </audio>
+             
         </div>
     </div>
     
@@ -318,36 +317,85 @@
         let interval = null;
         let musicPlayed = false;
         let remainingMessages = [...messages];
+        let musicPreloaded = false;
+        let preloadAudio = null; // 存储预载音频对象，方便监听进度
 
-        // 页面加载后启动进度条动画（补充进度百分比提示）
+        // 页面加载后启动音乐预载+同步进度条
         window.addEventListener('load', function() {
-            const duration = 3000; // 进度条动画时长3秒
-            const startTime = Date.now();
-            
-            // 动画循环
-            function updateProgress() {
-                const elapsed = Date.now() - startTime;
-                const progress = Math.min(elapsed / duration, 1); // 0~1的进度
-                const percent = Math.floor(progress * 100); // 转换为百分比
-                
-                // 更新进度条宽度、爱心位置、按钮文字
-                progressFill.style.width = `${percent}%`;
-                progressHeart.style.left = `${percent}%`;
-                blessingBtn.textContent = `进度条加载中（${percent}%）`;
-                
-                // 动画未完成则继续
-                if (progress < 1) {
-                    requestAnimationFrame(updateProgress);
-                } else {
-                    // 进度条完成后启用按钮
-                    blessingBtn.disabled = false;
-                    blessingBtn.textContent = "点击接收祝福";
-                }
-            }
-            
-            // 启动动画
-            requestAnimationFrame(updateProgress);
+            preloadMusic(); // 启动音乐预载
+            updateProgress(0); // 初始进度0
         });
+
+        // 音乐预载函数：监听加载进度，同步到进度条
+        function preloadMusic() {
+            if (bgMusic.src) {
+                preloadAudio = new Audio(bgMusic.src);
+                
+                // 监听音乐加载进度（核心：实时获取预载进度）
+                preloadAudio.addEventListener('progress', function() {
+                    if (preloadAudio.buffered.length > 0) {
+                        // 已加载字节数 / 总字节数 = 加载进度（0~1）
+                        const loaded = preloadAudio.buffered.end(preloadAudio.buffered.length - 1);
+                        const total = preloadAudio.duration || 1; // 兼容duration未获取的情况
+                        const progress = Math.min(loaded / total, 1);
+                        const percent = Math.floor(progress * 100);
+                        updateProgress(percent); // 同步更新进度条
+                    }
+                });
+
+                // 音乐预载完成（可无卡顿播放）
+                preloadAudio.addEventListener('canplaythrough', function() {
+                    musicPreloaded = true;
+                    updateProgress(100); // 进度条拉满
+                    waitForMusicPreload().then(() => {
+                        blessingBtn.disabled = false;
+                        blessingBtn.textContent = "点击接收祝福";
+                    });
+                    preloadAudio = null; // 释放内存
+                });
+
+                // 音乐加载失败：进度条仍拉满，不影响流程
+                preloadAudio.addEventListener('error', function() {
+                    updateProgress(100);
+                    waitForMusicPreload().then(() => {
+                        blessingBtn.disabled = false;
+                        blessingBtn.textContent = "点击接收祝福";
+                    });
+                    alert('音乐加载失败～ 不影响祝福接收，愿你天天开心呀 ❤️');
+                    preloadAudio = null;
+                });
+
+                preloadAudio.load(); // 手动触发加载
+            }
+        }
+
+        // 同步更新进度条和按钮文字
+        function updateProgress(percent) {
+            progressFill.style.width = `${percent}%`;
+            progressHeart.style.left = `${percent}%`;
+            blessingBtn.textContent = `音乐加载中（${percent}）`;
+        }
+
+        // 等待音乐预载完成（兼容加载完成后直接放行）
+        function waitForMusicPreload() {
+            return new Promise((resolve) => {
+                if (musicPreloaded) {
+                    resolve();
+                    return;
+                }
+                // 轮询检查预载状态，最多等8秒（避免卡住）
+                const checkTimer = setInterval(() => {
+                    if (musicPreloaded) {
+                        clearInterval(checkTimer);
+                        resolve();
+                    }
+                }, 100);
+                setTimeout(() => {
+                    clearInterval(checkTimer);
+                    resolve(); // 超时也放行
+                }, 8000);
+            });
+        }
 
         bgMusic.addEventListener('error', function() {
             alert('音乐加载失败～ 不影响祝福接收，愿你天天开心呀 ❤️');
@@ -356,8 +404,8 @@
         function startBlessings() {
             if (!musicPlayed) {
                 bgMusic.play().catch(err => {
-                    console.log('播放失败，可能需要用户交互：', err);
-                    alert('请点击页面空白处后再尝试接收祝福，以便正常播放音乐～');
+                    console.log('播放触发需要用户交互：', err);
+                    alert('请点击页面空白处后再尝试接收祝福～');
                     blessingBtn.disabled = false;
                     blessingBtn.textContent = "点击接收祝福";
                 });
@@ -385,24 +433,12 @@
                     blessingBtn.disabled = false;
                     blessingBtn.textContent = "再次接收祝福";
                     remainingMessages = [...messages];
+                    musicPlayed = false;
+                    musicPreloaded = false;
                     
-                    // 重置进度条（补充进度百分比提示）
-                    const startTime = Date.now();
-                    function resetProgress() {
-                        const elapsed = Date.now() - startTime;
-                        const progress = Math.min(elapsed / 3000, 1);
-                        const percent = Math.floor(progress * 100);
-                        progressFill.style.width = `${percent}%`;
-                        progressHeart.style.left = `${percent}%`;
-                        blessingBtn.disabled = true; // 重置时禁用按钮
-                        blessingBtn.textContent = `进度条加载中（${percent}%）`;
-                        if (progress < 1) requestAnimationFrame(resetProgress);
-                        else {
-                            blessingBtn.disabled = false;
-                            blessingBtn.textContent = "点击接收祝福";
-                        }
-                    }
-                    requestAnimationFrame(resetProgress);
+                    // 重置进度条+重新预载音乐（再次同步）
+                    updateProgress(0);
+                    preloadMusic();
                 }, 1000);
             }, 240000);
         }
