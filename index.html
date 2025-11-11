@@ -470,17 +470,21 @@
         function createRandomBlessing() {
             if (remainingMessages.length === 0) return;
             const template = document.querySelector('.popup-template');
-            const popup = template.querySelector('.popup-content').cloneNode(true);
-            document.body.appendChild(popup);
-            
-            // 基于弹窗尺寸+视口限制位置，避免超出屏幕
-            const popupWidth = popup.offsetWidth;
-            const popupHeight = popup.offsetHeight;
-            const maxTop = window.innerHeight - popupHeight;
-            const maxLeft = window.innerWidth - popupWidth;
+            const templatePopup = template.querySelector('.popup-content');
+            // 提前获取模板弹窗的尺寸（避免append后未渲染导致尺寸错误）
+            const popupRect = templatePopup.getBoundingClientRect();
+            const popupWidth = popupRect.width;
+            const popupHeight = popupRect.height;
+
+            const popup = templatePopup.cloneNode(true);
+            // 计算最大可用位置（确保弹窗完全在视口内）
+            const maxTop = Math.max(0, window.innerHeight - popupHeight);
+            const maxLeft = Math.max(0, window.innerWidth - popupWidth);
+            // 随机生成在视口内的位置
             const top = Math.floor(Math.random() * maxTop) + 'px';
             const left = Math.floor(Math.random() * maxLeft) + 'px';
-            
+
+            // 填充祝福内容与样式
             const randomMsgIndex = Math.floor(Math.random() * remainingMessages.length);
             const selectedMsg = remainingMessages.splice(randomMsgIndex, 1)[0];
             const randomColorIndex = Math.floor(Math.random() * colors.length);
@@ -488,11 +492,15 @@
             popup.style.backgroundColor = colors[randomColorIndex];
             popup.style.top = top;
             popup.style.left = left;
-            
+
+            // 添加到页面并显示
+            document.body.appendChild(popup);
             setTimeout(() => {
                 popup.style.opacity = '1';
                 popup.style.transform = 'translateY(0)';
             }, 10);
+
+            // 关闭按钮逻辑
             const closeBtn = popup.querySelector('.popup-close');
             closeBtn.addEventListener('click', () => {
                 popup.style.opacity = '0';
@@ -501,6 +509,8 @@
                     document.body.removeChild(popup);
                 }, 500);
             });
+
+            // 倒计时自动关闭
             let remainingTime = 10;
             const countdown = popup.querySelector('.popup-countdown');
             const countdownTimer = setInterval(() => {
@@ -520,24 +530,27 @@
         // 新增：创建等待弹窗（随机显示逗比文案）
         function createWaitPopup() {
             const template = document.querySelector('.wait-popup-template');
-            const popup = template.querySelector('.popup-content').cloneNode(true);
-            document.body.appendChild(popup);
+            const templatePopup = template.querySelector('.popup-content');
+            // 提前获取模板等待弹窗的尺寸
+            const popupRect = templatePopup.getBoundingClientRect();
+            const popupWidth = popupRect.width;
+            const popupHeight = popupRect.height;
 
-            // 随机选择一条逗比文案
-            const randomText = waitPopupTexts[Math.floor(Math.random() * waitPopupTexts.length)];
-            popup.querySelector('.popup-message').textContent = randomText;
-
-            // 基于弹窗尺寸+视口限制位置，避免超出屏幕
-            const popupWidth = popup.offsetWidth;
-            const popupHeight = popup.offsetHeight;
-            const maxTop = window.innerHeight - popupHeight;
-            const maxLeft = window.innerWidth - popupWidth;
+            const popup = templatePopup.cloneNode(true);
+            // 计算最大可用位置（确保弹窗在视口内）
+            const maxTop = Math.max(0, window.innerHeight - popupHeight);
+            const maxLeft = Math.max(0, window.innerWidth - popupWidth);
             const top = Math.floor(Math.random() * maxTop) + 'px';
             const left = Math.floor(Math.random() * maxLeft) + 'px';
+
+            // 填充文案与位置
+            const randomText = waitPopupTexts[Math.floor(Math.random() * waitPopupTexts.length)];
+            popup.querySelector('.popup-message').textContent = randomText;
             popup.style.top = top;
             popup.style.left = left;
 
-            // 弹窗渐入效果
+            // 添加到页面并显示
+            document.body.appendChild(popup);
             setTimeout(() => {
                 popup.style.opacity = '1';
                 popup.style.transform = 'translateY(0)';
