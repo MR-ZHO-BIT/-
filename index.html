@@ -423,27 +423,46 @@
                 });
                 musicPlayed = true;
             }
-            // 第一轮：先弹出4个弹窗启动
+            let isSecondRound = false; // 标记是否为第二遍弹窗
+            // 第一遍：先弹出4个弹窗启动
             for (let i = 0; i < 4 && remainingMessages.length > 0; i++) {
                 createRandomBlessing();
             }
             interval = setInterval(() => {
-                // 当当前轮次所有消息弹完，自动开启新一轮
                 if (remainingMessages.length === 0) {
-                    remainingMessages = [...messages]; // 重置消息池，重新随机
-                    // 新一轮启动：弹出3个弹窗过渡，保持节奏连贯
-                    for (let i = 0; i < 3; i++) {
-                        createRandomBlessing();
+                    if (!isSecondRound) {
+                        // 第一遍弹窗全结束，启动第二遍
+                        isSecondRound = true;
+                        remainingMessages = [...messages]; // 重置消息池
+                        // 第二遍启动：弹出3个弹窗过渡，保持原有节奏
+                        for (let i = 0; i < 3; i++) {
+                            createRandomBlessing();
+                        }
+                        return;
+                    } else {
+                        // 第二遍弹窗全结束，停止定时器
+                        clearInterval(interval);
+                        // 重置按钮和状态，允许再次点击
+                        setTimeout(() => {
+                            blessingBtn.disabled = false;
+                            blessingBtn.textContent = "再次接收祝福";
+                            remainingMessages = [...messages];
+                            musicPlayed = false;
+                            musicPreloaded = false;
+                            updateProgress(0);
+                            // 再次接收时自动预载+重启等待弹窗
+                            fetchAudio("missyouhani.mp3");
+                            startWaitPopups();
+                        }, 1000);
+                        return;
                     }
-                    return;
                 }
-                // 正常轮次：每3秒随机弹1-3个弹窗
+                // 正常轮次：每3秒随机弹1-3个弹窗（与原逻辑一致）
                 const maxPopup = Math.min(Math.floor(Math.random() * 3) + 1, remainingMessages.length);
                 for (let i = 0; i < maxPopup; i++) {
                     createRandomBlessing();
                 }
             }, 3000);
-            // 保持按钮禁用状态，显示祝福发送中
             blessingBtn.disabled = true;
             blessingBtn.textContent = "祝福发送中🎵";
         }
@@ -561,22 +580,10 @@
             }, 5000);
         }
 
-        // 优化按钮点击事件：支持手动重启循环
         blessingBtn.addEventListener('click', function() {
             if (blessingBtn.disabled) return;
-            // 清除上一轮未结束的定时器
-            if (interval) clearInterval(interval);
-            // 关闭所有未关闭的祝福弹窗
-            document.querySelectorAll('.popup-content:not(.wait-popup)').forEach(popup => {
-                popup.style.opacity = '0';
-                popup.style.transform = 'translateY(20px)';
-                setTimeout(() => popup.remove(), 500);
-            });
-            // 重置消息池和按钮状态
-            remainingMessages = [...messages];
             blessingBtn.disabled = true;
             blessingBtn.textContent = "加载中...🎵";
-            // 重启祝福发送
             startBlessings();
         });
     </script>
