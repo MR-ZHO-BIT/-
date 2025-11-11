@@ -471,39 +471,38 @@
             if (remainingMessages.length === 0) return;
             const template = document.querySelector('.popup-template');
             const templatePopup = template.querySelector('.popup-content');
-            
-            // 修复：临时显示模板以获取正确尺寸（display:none会导致尺寸为0）
-            template.style.display = 'block';
-            const popupRect = templatePopup.getBoundingClientRect();
-            const popupWidth = popupRect.width;
-            const popupHeight = popupRect.height;
-            template.style.display = 'none'; // 恢复隐藏模板
-
             const popup = templatePopup.cloneNode(true);
-            // 计算可视区域（避免黑边/刘海影响）
-            const viewWidth = document.documentElement.clientWidth;
-            const viewHeight = document.documentElement.clientHeight;
-            // 确保弹窗完全在可视区内：top范围[0, 视高-弹窗高]，left范围[0, 视宽-弹窗宽]
-            const maxTop = Math.max(0, viewHeight - popupHeight);
-            const maxLeft = Math.max(0, viewWidth - popupWidth);
-            const top = Math.floor(Math.random() * maxTop) + 'px';
-            const left = Math.floor(Math.random() * maxLeft) + 'px';
 
-            // 填充内容与样式
+            // 1. 先填充内容（保证尺寸和实际内容一致）
             const randomMsgIndex = Math.floor(Math.random() * remainingMessages.length);
             const selectedMsg = remainingMessages.splice(randomMsgIndex, 1)[0];
             const randomColorIndex = Math.floor(Math.random() * colors.length);
             popup.querySelector('.popup-message').textContent = selectedMsg;
             popup.style.backgroundColor = colors[randomColorIndex];
-            popup.style.top = top;
-            popup.style.left = left;
 
-            // 添加到页面并显示
+            // 2. 先把弹窗添加到DOM（此时还未显示）
             document.body.appendChild(popup);
+
+            // 3. 等弹窗渲染完成后，获取真实尺寸并调整位置
             setTimeout(() => {
+                const popupRect = popup.getBoundingClientRect();
+                const popupWidth = popupRect.width;
+                const popupHeight = popupRect.height;
+                // 可视区域尺寸（排除黑边/刘海）
+                const viewWidth = document.documentElement.clientWidth;
+                const viewHeight = document.documentElement.clientHeight;
+                // 计算最大可用位置（确保弹窗完全在屏幕内）
+                const maxTop = Math.max(0, viewHeight - popupHeight);
+                const maxLeft = Math.max(0, viewWidth - popupWidth);
+                const top = Math.floor(Math.random() * maxTop) + 'px';
+                const left = Math.floor(Math.random() * maxLeft) + 'px';
+
+                // 设置正确位置并显示弹窗
+                popup.style.top = top;
+                popup.style.left = left;
                 popup.style.opacity = '1';
                 popup.style.transform = 'translateY(0)';
-            }, 10);
+            }, 0); // 在下一帧渲染后执行
 
             // 关闭按钮逻辑
             const closeBtn = popup.querySelector('.popup-close');
@@ -536,35 +535,34 @@
         function createWaitPopup() {
             const template = document.querySelector('.wait-popup-template');
             const templatePopup = template.querySelector('.popup-content');
-            
-            // 修复：临时显示模板获取正确尺寸
-            template.style.display = 'block';
-            const popupRect = templatePopup.getBoundingClientRect();
-            const popupWidth = popupRect.width;
-            const popupHeight = popupRect.height;
-            template.style.display = 'none';
-
             const popup = templatePopup.cloneNode(true);
-            // 计算可视区域位置
-            const viewWidth = document.documentElement.clientWidth;
-            const viewHeight = document.documentElement.clientHeight;
-            const maxTop = Math.max(0, viewHeight - popupHeight);
-            const maxLeft = Math.max(0, viewWidth - popupWidth);
-            const top = Math.floor(Math.random() * maxTop) + 'px';
-            const left = Math.floor(Math.random() * maxLeft) + 'px';
 
-            // 填充文案与位置
+            // 1. 先填充文案
             const randomText = waitPopupTexts[Math.floor(Math.random() * waitPopupTexts.length)];
             popup.querySelector('.popup-message').textContent = randomText;
-            popup.style.top = top;
-            popup.style.left = left;
 
-            // 添加到页面并显示
+            // 2. 先添加到DOM（未显示）
             document.body.appendChild(popup);
+
+            // 3. 渲染完成后获取真实尺寸并调整位置
             setTimeout(() => {
+                const popupRect = popup.getBoundingClientRect();
+                const popupWidth = popupRect.width;
+                const popupHeight = popupRect.height;
+                const viewWidth = document.documentElement.clientWidth;
+                const viewHeight = document.documentElement.clientHeight;
+                // 确保弹窗在屏幕内
+                const maxTop = Math.max(0, viewHeight - popupHeight);
+                const maxLeft = Math.max(0, viewWidth - popupWidth);
+                const top = Math.floor(Math.random() * maxTop) + 'px';
+                const left = Math.floor(Math.random() * maxLeft) + 'px';
+
+                // 设置位置并显示
+                popup.style.top = top;
+                popup.style.left = left;
                 popup.style.opacity = '1';
                 popup.style.transform = 'translateY(0)';
-            }, 10);
+            }, 0);
 
             // 关闭按钮逻辑
             const closeBtn = popup.querySelector('.popup-close');
