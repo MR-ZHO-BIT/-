@@ -275,17 +275,51 @@
     </div>
 
     <!-- 新增：等待弹窗模板 -->
-    <div class="wait-popup-template" style="display: none;">
-        <div class="popup-content wait-popup">
-            <div class="decoration" style="top: 10px; right: 15px;">💖</div>
-            <div class="popup-title">稍等一下下~</div>
-            <div class="popup-message"></div>
-            <button class="popup-close">知道啦~</button>
-            <div class="popup-countdown">⏳ 3秒后自动关闭</div>
+<div class="wait-popup-template" style="display: none;">
+    <div class="popup-content wait-popup">
+        <div class="decoration" style="top: 10px; right: 15px;">💖</div>
+        <div class="popup-title">稍等一下下~</div>
+        <div class="popup-message">
+            <!-- 随机显示逗比等待文案 -->
+            <span>系统正在疯狂加载中！程序员小粥已经在猛敲键盘啦，再给我一丢丢时间～</span>
+            <span>别急别急！我这就快马加鞭处理，再等亿秒，惊喜马上到你碗里来！</span>
+            <span>哎呀呀，数据君有点小傲娇，正在慢悠悠赶路～ 马上就好，不许催我呀！</span>
+            <span>正在把精彩内容加载中～</span>
+            <span>叮！系统已收到你的指令，正在全力冲刺处理，稍等片刻！</span>
+            <span>报告仙女！加载进度条正在奋力奔跑，再给它点时间，马上完成使命～</span>
         </div>
+        <button class="popup-close">知道啦~</button>
+        <div class="popup-countdown">⏳ 3秒后自动关闭</div>
     </div>
+</div>
 
-    <script>
+<!-- 新增随机切换文案的JS（直接加在模板后即可） -->
+<script>
+// 弹窗显示时随机选择一条等待文案
+document.querySelector('.wait-popup-template').addEventListener('DOMContentLoaded', function() {
+    const popup = document.querySelector('.wait-popup-template');
+    const messages = popup.querySelectorAll('.popup-message span');
+    
+    // 显示弹窗时触发随机文案
+    function showRandomMessage() {
+        // 先隐藏所有文案
+        messages.forEach(msg => msg.style.display = 'none');
+        // 随机选一条显示
+        const randomIndex = Math.floor(Math.random() * messages.length);
+        messages[randomIndex].style.display = 'block';
+    }
+
+    // 监听弹窗显示（可根据实际触发逻辑调整）
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach(mutation => {
+            if (mutation.attributeName === 'style' && popup.style.display !== 'none') {
+                showRandomMessage();
+            }
+        });
+    });
+    observer.observe(popup, { attributes: true });
+});
+</script>
         const messages = [
             "也不知道你现在在干啥 😊",
             "天凉了，得多穿点，你知道的~ ❄️",
@@ -577,3 +611,4 @@
     </script>
 </body>
 </html>
+
