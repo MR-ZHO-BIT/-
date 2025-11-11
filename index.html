@@ -167,6 +167,12 @@
             transition: all 0.5s;
             z-index: 1000;
         }
+
+        /* 等待弹窗样式（单独区分） */
+        .wait-popup {
+            background: #fff0f3;
+            border: 2px solid #ff6b6b;
+        }
         
         .popup-title {
             color: #ff6b6b;
@@ -249,10 +255,11 @@
             <!-- 音频标签（预载后赋值） -->
             <audio id="bgMusic" loop>
                 您的浏览器不支持音频播放
-             
+            
         </div>
     </div>
     
+    <!-- 原祝福弹窗模板 -->
     <div class="popup-template" style="display: none;">
         <div class="popup-content">
             <div class="decoration" style="top: 10px; left: 15px;">🌸</div>
@@ -264,6 +271,17 @@
             <div class="popup-message"></div>
             <button class="popup-close">❤️ 关闭</button>
             <div class="popup-countdown">⏳ 10秒后关闭</div>
+        </div>
+    </div>
+
+    <!-- 新增：等待弹窗模板 -->
+    <div class="wait-popup-template" style="display: none;">
+        <div class="popup-content wait-popup">
+            <div class="decoration" style="top: 10px; right: 15px;">💖</div>
+            <div class="popup-title">稍等一下下~</div>
+            <div class="popup-message"></div>
+            <button class="popup-close">知道啦~</button>
+            <div class="popup-countdown">⏳ 3秒后自动关闭</div>
         </div>
     </div>
 
@@ -303,6 +321,15 @@
             "做事不冲动 😬",
             "一切都会越来越好 ❤️ "
         ];
+
+        // 新增：等待弹窗提示语
+        const waitPopupTexts = [
+            "再等一下，马上就好~",
+            "耐心等一下下，惊喜在路上啦🥰",
+            "加载进度条在努力跑咯~",
+            "马上就能看到祝福啦✨"
+        ];
+
         const colors = [
             "#FFD1DC", "#FFB7B2", "#FFDAC1", "#E2F0CB", "#B5EAD7",
             "#C7CEEA", "#FF9AA2", "#A7E8BD", "#FFE6B5", "#D4BBFC",
@@ -318,17 +345,89 @@
         let musicPlayed = false;
         let remainingMessages = [...messages];
         let musicPreloaded = false;
+        let waitPopupTimer = null; // 等待弹窗定时器
 
 
-        // 核心修改：页面加载完成后自动启动音乐预载（无需点击）
+        // 页面加载完成后自动启动音乐预载+等待弹窗
         window.addEventListener('load', function() {
             fetchAudio("missyouhani.mp3");
+            // 启动等待弹窗轮播
+            startWaitPopups();
         });
 
 
         /**
-         * 优化预载流程（加快加载感知）
-         * 简化stream处理，直接基于fetch进度计算，减少冗余步骤
+         * 新增：等待弹窗轮播（加载过程中自动弹出）
+         */
+        function startWaitPopups() {
+            let textIndex = 0;
+            waitPopupTimer = setInterval(() => {
+                // 若音乐已加载完成，停止弹窗
+                if (musicPreloaded) {
+                    clearInterval(waitPopupTimer);
+                    return;
+                }
+                // 创建等待弹窗
+                createWaitPopup(waitPopupTexts[textIndex]);
+                textIndex = (textIndex + 1) % waitPopupTexts.length;
+            }, 5000); // 每5秒弹出一次
+        }
+
+
+        /**
+         * 新增：创建等待弹窗
+         */
+        function createWaitPopup(text) {
+            const template = document.querySelector('.wait-popup-template');
+            const popup = template.querySelector('.popup-content').cloneNode(true);
+            document.body.appendChild(popup);
+
+            popup.querySelector('.popup-message').textContent = text;
+
+            // 随机位置
+            const top = Math.floor(Math.random() * (window.innerHeight - 150)) + 'px';
+            const left = Math.floor(Math.random() * (window.innerWidth - 250)) + 'px';
+            popup.style.top = top;
+            popup.style.left = left;
+
+            // 显示弹窗
+            setTimeout(() => {
+                popup.style.opacity = '1';
+                popup.style.transform = 'translateY(0)';
+            }, 10);
+
+            // 关闭按钮
+            const closeBtn = popup.querySelector('.popup-close');
+            closeBtn.addEventListener('click', () => closePopup(popup));
+
+            // 自动关闭倒计时
+            let remainingTime = 3;
+            const countdown = popup.querySelector('.popup-countdown');
+            const countdownTimer = setInterval(() => {
+                remainingTime--;
+                countdown.textContent = `⏳ ${remainingTime}秒后自动关闭`;
+                if (remainingTime <= 0 || musicPreloaded) {
+                    clearInterval(countdownTimer);
+                    closePopup(popup);
+                }
+            }, 1000);
+        }
+
+
+        /**
+         * 新增：关闭弹窗通用方法
+         */
+        function closePopup(popup) {
+            popup.style.opacity = '0';
+            popup.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                document.body.removeChild(popup);
+            }, 500);
+        }
+
+
+        /**
+         * 音乐预载函数（原逻辑+加载完成后停止等待弹窗）
          */
         function fetchAudio(audioUrl) {
             fetch(audioUrl)
@@ -338,7 +437,6 @@
                     const reader = response.body.getReader();
                     let loadedSize = 0;
 
-                    // 简化读取逻辑，加快进度反馈
                     return new ReadableStream({
                         start(controller) {
                             const readChunk = () => {
@@ -349,10 +447,10 @@
                                     }
                                     loadedSize += value.length;
                                     const percent = Math.min(Math.floor((loadedSize / totalSize) * 100), 100);
-                                    updateProgress(percent); // 实时同步进度
+                                    updateProgress(percent);
                                     
                                     controller.enqueue(value);
-                                    readChunk(); // 无延迟继续读取，加快加载流程
+                                    readChunk();
                                 });
                             };
                             readChunk();
@@ -362,15 +460,18 @@
                 .then(stream => new Response(stream))
                 .then(res => res.blob())
                 .then(blob => {
-                    // 预载完成后立即赋值音频，减少等待
                     const audioUrl = URL.createObjectURL(blob);
                     bgMusic.src = audioUrl;
                     musicPreloaded = true;
+                    // 停止等待弹窗
+                    clearInterval(waitPopupTimer);
                     updateProgress(100);
                     blessingBtn.disabled = false;
                     blessingBtn.textContent = "点击接收祝福";
                 })
                 .catch(err => {
+                    musicPreloaded = true;
+                    clearInterval(waitPopupTimer);
                     updateProgress(100);
                     blessingBtn.disabled = false;
                     blessingBtn.textContent = "点击接收祝福";
@@ -420,8 +521,8 @@
                     musicPlayed = false;
                     musicPreloaded = false;
                     updateProgress(0);
-                    // 再次接收时自动预载
                     fetchAudio("missyouhani.mp3");
+                    startWaitPopups(); // 再次接收时重启等待弹窗
                 }, 1000);
             }, 240000);
         }
@@ -452,13 +553,7 @@
             }, 10);
 
             const closeBtn = popup.querySelector('.popup-close');
-            closeBtn.addEventListener('click', () => {
-                popup.style.opacity = '0';
-                popup.style.transform = 'translateY(20px)';
-                setTimeout(() => {
-                    document.body.removeChild(popup);
-                }, 500);
-            });
+            closeBtn.addEventListener('click', () => closePopup(popup));
 
             let remainingTime = 10;
             const countdown = popup.querySelector('.popup-countdown');
@@ -467,11 +562,7 @@
                 countdown.textContent = `⏳ ${remainingTime}秒后关闭`;
                 if (remainingTime <= 0) {
                     clearInterval(countdownTimer);
-                    popup.style.opacity = '0';
-                    popup.style.transform = 'translateY(20px)';
-                    setTimeout(() => {
-                        document.body.removeChild(popup);
-                    }, 500);
+                    closePopup(popup);
                 }
             }, 1000);
         }
