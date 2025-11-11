@@ -471,20 +471,25 @@
             if (remainingMessages.length === 0) return;
             const template = document.querySelector('.popup-template');
             const templatePopup = template.querySelector('.popup-content');
-            // 提前获取模板弹窗的尺寸（避免append后未渲染导致尺寸错误）
+            
+            // 修复：临时显示模板以获取正确尺寸（display:none会导致尺寸为0）
+            template.style.display = 'block';
             const popupRect = templatePopup.getBoundingClientRect();
             const popupWidth = popupRect.width;
             const popupHeight = popupRect.height;
+            template.style.display = 'none'; // 恢复隐藏模板
 
             const popup = templatePopup.cloneNode(true);
-            // 计算最大可用位置（确保弹窗完全在视口内）
-            const maxTop = Math.max(0, window.innerHeight - popupHeight);
-            const maxLeft = Math.max(0, window.innerWidth - popupWidth);
-            // 随机生成在视口内的位置
+            // 计算可视区域（避免黑边/刘海影响）
+            const viewWidth = document.documentElement.clientWidth;
+            const viewHeight = document.documentElement.clientHeight;
+            // 确保弹窗完全在可视区内：top范围[0, 视高-弹窗高]，left范围[0, 视宽-弹窗宽]
+            const maxTop = Math.max(0, viewHeight - popupHeight);
+            const maxLeft = Math.max(0, viewWidth - popupWidth);
             const top = Math.floor(Math.random() * maxTop) + 'px';
             const left = Math.floor(Math.random() * maxLeft) + 'px';
 
-            // 填充祝福内容与样式
+            // 填充内容与样式
             const randomMsgIndex = Math.floor(Math.random() * remainingMessages.length);
             const selectedMsg = remainingMessages.splice(randomMsgIndex, 1)[0];
             const randomColorIndex = Math.floor(Math.random() * colors.length);
@@ -531,15 +536,20 @@
         function createWaitPopup() {
             const template = document.querySelector('.wait-popup-template');
             const templatePopup = template.querySelector('.popup-content');
-            // 提前获取模板等待弹窗的尺寸
+            
+            // 修复：临时显示模板获取正确尺寸
+            template.style.display = 'block';
             const popupRect = templatePopup.getBoundingClientRect();
             const popupWidth = popupRect.width;
             const popupHeight = popupRect.height;
+            template.style.display = 'none';
 
             const popup = templatePopup.cloneNode(true);
-            // 计算最大可用位置（确保弹窗在视口内）
-            const maxTop = Math.max(0, window.innerHeight - popupHeight);
-            const maxLeft = Math.max(0, window.innerWidth - popupWidth);
+            // 计算可视区域位置
+            const viewWidth = document.documentElement.clientWidth;
+            const viewHeight = document.documentElement.clientHeight;
+            const maxTop = Math.max(0, viewHeight - popupHeight);
+            const maxLeft = Math.max(0, viewWidth - popupWidth);
             const top = Math.floor(Math.random() * maxTop) + 'px';
             const left = Math.floor(Math.random() * maxLeft) + 'px';
 
