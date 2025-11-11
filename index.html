@@ -167,12 +167,6 @@
             transition: all 0.5s;
             z-index: 1000;
         }
-
-        /* 等待弹窗样式（单独区分） */
-        .wait-popup {
-            background: #fff0f3;
-            border: 2px solid #ff6b6b;
-        }
         
         .popup-title {
             color: #ff6b6b;
@@ -255,11 +249,11 @@
             <!-- 音频标签（预载后赋值） -->
             <audio id="bgMusic" loop>
                 您的浏览器不支持音频播放
-            
+            </audio>
         </div>
     </div>
     
-    <!-- 原祝福弹窗模板 -->
+    <!-- 原有祝福弹窗模板 -->
     <div class="popup-template" style="display: none;">
         <div class="popup-content">
             <div class="decoration" style="top: 10px; left: 15px;">🌸</div>
@@ -274,52 +268,18 @@
         </div>
     </div>
 
-    <!-- 新增：等待弹窗模板 -->
-<div class="wait-popup-template" style="display: none;">
-    <div class="popup-content wait-popup">
-        <div class="decoration" style="top: 10px; right: 15px;">💖</div>
-        <div class="popup-title">稍等一下下~</div>
-        <div class="popup-message">
-            <!-- 随机显示逗比等待文案 -->
-            <span>系统正在疯狂加载中！程序员小粥已经在猛敲键盘啦，再给我一丢丢时间～</span>
-            <span>别急别急！我这就快马加鞭处理，再等亿秒，惊喜马上到你碗里来！</span>
-            <span>哎呀呀，数据君有点小傲娇，正在慢悠悠赶路～ 马上就好，不许催我呀！</span>
-            <span>正在把精彩内容加载中～</span>
-            <span>叮！系统已收到你的指令，正在全力冲刺处理，稍等片刻！</span>
-            <span>报告仙女！加载进度条正在奋力奔跑，再给它点时间，马上完成使命～</span>
+    <!-- 新增：等待弹窗模板（音乐加载时显示） -->
+    <div class="wait-popup-template" style="display: none;">
+        <div class="popup-content wait-popup">
+            <div class="decoration" style="top: 10px; right: 15px;">💖</div>
+            <div class="popup-title">稍等一下下~</div>
+            <div class="popup-message"></div>
+            <button class="popup-close">知道啦~</button>
+            <div class="popup-countdown">⏳ 3秒后自动关闭</div>
         </div>
-        <button class="popup-close">知道啦~</button>
-        <div class="popup-countdown">⏳ 3秒后自动关闭</div>
     </div>
-</div>
-
-<!-- 新增随机切换文案的JS（直接加在模板后即可） -->
-<script>
-// 弹窗显示时随机选择一条等待文案
-document.querySelector('.wait-popup-template').addEventListener('DOMContentLoaded', function() {
-    const popup = document.querySelector('.wait-popup-template');
-    const messages = popup.querySelectorAll('.popup-message span');
     
-    // 显示弹窗时触发随机文案
-    function showRandomMessage() {
-        // 先隐藏所有文案
-        messages.forEach(msg => msg.style.display = 'none');
-        // 随机选一条显示
-        const randomIndex = Math.floor(Math.random() * messages.length);
-        messages[randomIndex].style.display = 'block';
-    }
-
-    // 监听弹窗显示（可根据实际触发逻辑调整）
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach(mutation => {
-            if (mutation.attributeName === 'style' && popup.style.display !== 'none') {
-                showRandomMessage();
-            }
-        });
-    });
-    observer.observe(popup, { attributes: true });
-});
-</script>
+    <script>
         const messages = [
             "也不知道你现在在干啥 😊",
             "天凉了，得多穿点，你知道的~ ❄️",
@@ -355,20 +315,20 @@ document.querySelector('.wait-popup-template').addEventListener('DOMContentLoade
             "做事不冲动 😬",
             "一切都会越来越好 ❤️ "
         ];
-
-        // 新增：等待弹窗提示语
-        const waitPopupTexts = [
-            "再等一下，马上就好~",
-            "耐心等一下下，惊喜在路上啦🥰",
-            "加载进度条在努力跑咯~",
-            "马上就能看到祝福啦✨"
-        ];
-
         const colors = [
             "#FFD1DC", "#FFB7B2", "#FFDAC1", "#E2F0CB", "#B5EAD7",
             "#C7CEEA", "#FF9AA2", "#A7E8BD", "#FFE6B5", "#D4BBFC",
             "#FFB5C2", "#A0E7E5", "#FFC8A2", "#B4E8E6", "#FFC6D9",
             "#C5E0D8", "#FFB8C6", "#B8DFD8", "#FFD3B6", "#D6EADF"
+        ];
+        // 新增：逗比等待弹窗文案
+        const waitPopupTexts = [
+            "系统正在疯狂加载中！程序员小粥已经在猛敲键盘啦，再给我一丢丢时间～",
+            "别急别急！我这就快马加鞭处理，再等亿秒，惊喜马上到你碗里来！",
+            "哎呀呀，数据君有点小傲娇，正在慢悠悠赶路～ 马上就好，不许催我呀！",
+            "正在把精彩内容加载中～",
+            "叮！系统已收到你的指令，正在全力冲刺处理，稍等片刻！",
+            "报告仙女！加载进度条正在奋力奔跑，再给它点时间，马上完成使命～"
         ];
 
         const blessingBtn = document.getElementById('blessingBtn');
@@ -379,62 +339,180 @@ document.querySelector('.wait-popup-template').addEventListener('DOMContentLoade
         let musicPlayed = false;
         let remainingMessages = [...messages];
         let musicPreloaded = false;
-        let waitPopupTimer = null; // 等待弹窗定时器
+        let waitPopupTimer = null; // 新增：等待弹窗定时器
 
-
-        // 页面加载完成后自动启动音乐预载+等待弹窗
+        // 核心修改：页面加载完成后自动启动音乐预载+等待弹窗
         window.addEventListener('load', function() {
             fetchAudio("missyouhani.mp3");
-            // 启动等待弹窗轮播
-            startWaitPopups();
+            startWaitPopups(); // 启动等待弹窗轮播
         });
 
-
         /**
-         * 新增：等待弹窗轮播（加载过程中自动弹出）
+         * 优化预载流程（加快加载感知）
+         * 简化stream处理，直接基于fetch进度计算，减少冗余步骤
          */
-        function startWaitPopups() {
-            let textIndex = 0;
-            waitPopupTimer = setInterval(() => {
-                // 若音乐已加载完成，停止弹窗
-                if (musicPreloaded) {
-                    clearInterval(waitPopupTimer);
-                    return;
-                }
-                // 创建等待弹窗
-                createWaitPopup(waitPopupTexts[textIndex]);
-                textIndex = (textIndex + 1) % waitPopupTexts.length;
-            }, 5000); // 每5秒弹出一次
+        function fetchAudio(audioUrl) {
+            fetch(audioUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error("音频加载失败");
+                    const totalSize = parseInt(response.headers.get('content-length'), 10) || 1;
+                    const reader = response.body.getReader();
+                    let loadedSize = 0;
+                    // 简化读取逻辑，加快进度反馈
+                    return new ReadableStream({
+                        start(controller) {
+                            const readChunk = () => {
+                                reader.read().then(({ done, value }) => {
+                                    if (done) {
+                                        controller.close();
+                                        return;
+                                    }
+                                    loadedSize += value.length;
+                                    const percent = Math.min(Math.floor((loadedSize / totalSize) * 100), 100);
+                                    updateProgress(percent); // 实时同步进度
+                                    
+                                    controller.enqueue(value);
+                                    readChunk(); // 无延迟继续读取，加快加载流程
+                                });
+                            };
+                            readChunk();
+                        }
+                    });
+                })
+                .then(stream => new Response(stream))
+                .then(res => res.blob())
+                .then(blob => {
+                    // 预载完成后立即赋值音频，减少等待
+                    const audioUrl = URL.createObjectURL(blob);
+                    bgMusic.src = audioUrl;
+                    musicPreloaded = true;
+                    clearInterval(waitPopupTimer); // 音乐加载完，停止等待弹窗
+                    updateProgress(100);
+                    blessingBtn.disabled = false;
+                    blessingBtn.textContent = "点击接收祝福";
+                })
+                .catch(err => {
+                    clearInterval(waitPopupTimer); // 加载失败也停止弹窗
+                    updateProgress(100);
+                    blessingBtn.disabled = false;
+                    blessingBtn.textContent = "点击接收祝福";
+                    alert('音乐加载失败~ 但可以正常接收祝福哦 ❤️');
+                });
         }
 
+        function updateProgress(percent) {
+            progressFill.style.width = `${percent}%`;
+            progressHeart.style.left = `${percent}%`;
+            blessingBtn.textContent = `音乐加载中（${percent}）`;
+        }
 
-        /**
-         * 新增：创建等待弹窗
-         */
-        function createWaitPopup(text) {
+        function startBlessings() {
+            if (!musicPlayed) {
+                bgMusic.play().catch(err => {
+                    alert('请点击页面空白处后再尝试~');
+                    blessingBtn.disabled = false;
+                    blessingBtn.textContent = "点击接收祝福";
+                });
+                musicPlayed = true;
+            }
+            for (let i = 0; i < 4 && remainingMessages.length > 0; i++) {
+                createRandomBlessing();
+            }
+            interval = setInterval(() => {
+                if (remainingMessages.length === 0) {
+                    clearInterval(interval);
+                    return;
+                }
+                const maxPopup = Math.min(Math.floor(Math.random() * 3) + 1, remainingMessages.length);
+                for (let i = 0; i < maxPopup; i++) {
+                    createRandomBlessing();
+                }
+            }, 3000);
+            setTimeout(() => {
+                clearInterval(interval);
+                setTimeout(() => {
+                    blessingBtn.disabled = false;
+                    blessingBtn.textContent = "再次接收祝福";
+                    remainingMessages = [...messages];
+                    musicPlayed = false;
+                    musicPreloaded = false;
+                    updateProgress(0);
+                    // 再次接收时自动预载+重启等待弹窗
+                    fetchAudio("missyouhani.mp3");
+                    startWaitPopups();
+                }, 1000);
+            }, 240000);
+        }
+
+        function createRandomBlessing() {
+            if (remainingMessages.length === 0) return;
+            const template = document.querySelector('.popup-template');
+            const popup = template.querySelector('.popup-content').cloneNode(true);
+            document.body.appendChild(popup);
+            const randomMsgIndex = Math.floor(Math.random() * remainingMessages.length);
+            const selectedMsg = remainingMessages.splice(randomMsgIndex, 1)[0];
+            const randomColorIndex = Math.floor(Math.random() * colors.length);
+            popup.querySelector('.popup-message').textContent = selectedMsg;
+            popup.style.backgroundColor = colors[randomColorIndex];
+            const top = Math.floor(Math.random() * (window.innerHeight - 200)) + 'px';
+            const left = Math.floor(Math.random() * (window.innerWidth - 300)) + 'px';
+            popup.style.top = top;
+            popup.style.left = left;
+            setTimeout(() => {
+                popup.style.opacity = '1';
+                popup.style.transform = 'translateY(0)';
+            }, 10);
+            const closeBtn = popup.querySelector('.popup-close');
+            closeBtn.addEventListener('click', () => {
+                popup.style.opacity = '0';
+                popup.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    document.body.removeChild(popup);
+                }, 500);
+            });
+            let remainingTime = 10;
+            const countdown = popup.querySelector('.popup-countdown');
+            const countdownTimer = setInterval(() => {
+                remainingTime--;
+                countdown.textContent = `⏳ ${remainingTime}秒后关闭`;
+                if (remainingTime <= 0) {
+                    clearInterval(countdownTimer);
+                    popup.style.opacity = '0';
+                    popup.style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        document.body.removeChild(popup);
+                    }, 500);
+                }
+            }, 1000);
+        }
+
+        // 新增：创建等待弹窗（随机显示逗比文案）
+        function createWaitPopup() {
             const template = document.querySelector('.wait-popup-template');
             const popup = template.querySelector('.popup-content').cloneNode(true);
             document.body.appendChild(popup);
 
-            popup.querySelector('.popup-message').textContent = text;
+            // 随机选择一条逗比文案
+            const randomText = waitPopupTexts[Math.floor(Math.random() * waitPopupTexts.length)];
+            popup.querySelector('.popup-message').textContent = randomText;
 
-            // 随机位置
+            // 随机位置显示
             const top = Math.floor(Math.random() * (window.innerHeight - 150)) + 'px';
             const left = Math.floor(Math.random() * (window.innerWidth - 250)) + 'px';
             popup.style.top = top;
             popup.style.left = left;
 
-            // 显示弹窗
+            // 弹窗渐入效果
             setTimeout(() => {
                 popup.style.opacity = '1';
                 popup.style.transform = 'translateY(0)';
             }, 10);
 
-            // 关闭按钮
+            // 关闭按钮逻辑
             const closeBtn = popup.querySelector('.popup-close');
             closeBtn.addEventListener('click', () => closePopup(popup));
 
-            // 自动关闭倒计时
+            // 3秒自动关闭
             let remainingTime = 3;
             const countdown = popup.querySelector('.popup-countdown');
             const countdownTimer = setInterval(() => {
@@ -447,10 +525,7 @@ document.querySelector('.wait-popup-template').addEventListener('DOMContentLoade
             }, 1000);
         }
 
-
-        /**
-         * 新增：关闭弹窗通用方法
-         */
+        // 新增：关闭弹窗通用函数
         function closePopup(popup) {
             popup.style.opacity = '0';
             popup.style.transform = 'translateY(20px)';
@@ -459,148 +534,16 @@ document.querySelector('.wait-popup-template').addEventListener('DOMContentLoade
             }, 500);
         }
 
-
-        /**
-         * 音乐预载函数（原逻辑+加载完成后停止等待弹窗）
-         */
-        function fetchAudio(audioUrl) {
-            fetch(audioUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error("音频加载失败");
-                    const totalSize = parseInt(response.headers.get('content-length'), 10) || 1;
-                    const reader = response.body.getReader();
-                    let loadedSize = 0;
-
-                    return new ReadableStream({
-                        start(controller) {
-                            const readChunk = () => {
-                                reader.read().then(({ done, value }) => {
-                                    if (done) {
-                                        controller.close();
-                                        return;
-                                    }
-                                    loadedSize += value.length;
-                                    const percent = Math.min(Math.floor((loadedSize / totalSize) * 100), 100);
-                                    updateProgress(percent);
-                                    
-                                    controller.enqueue(value);
-                                    readChunk();
-                                });
-                            };
-                            readChunk();
-                        }
-                    });
-                })
-                .then(stream => new Response(stream))
-                .then(res => res.blob())
-                .then(blob => {
-                    const audioUrl = URL.createObjectURL(blob);
-                    bgMusic.src = audioUrl;
-                    musicPreloaded = true;
-                    // 停止等待弹窗
+        // 新增：启动等待弹窗轮播（每5秒弹一次）
+        function startWaitPopups() {
+            waitPopupTimer = setInterval(() => {
+                if (musicPreloaded) {
                     clearInterval(waitPopupTimer);
-                    updateProgress(100);
-                    blessingBtn.disabled = false;
-                    blessingBtn.textContent = "点击接收祝福";
-                })
-                .catch(err => {
-                    musicPreloaded = true;
-                    clearInterval(waitPopupTimer);
-                    updateProgress(100);
-                    blessingBtn.disabled = false;
-                    blessingBtn.textContent = "点击接收祝福";
-                    alert('音乐加载失败~ 但可以正常接收祝福哦 ❤️');
-                });
-        }
-
-
-        function updateProgress(percent) {
-            progressFill.style.width = `${percent}%`;
-            progressHeart.style.left = `${percent}%`;
-            blessingBtn.textContent = `音乐加载中（${percent}）`;
-        }
-
-
-        function startBlessings() {
-            if (!musicPlayed) {
-                bgMusic.play().catch(err => {
-                    alert('请点击页面空白处后再尝试~');
-                    blessingBtn.disabled = false;
-                    blessingBtn.textContent = "点击接收祝福";
-                });
-                musicPlayed = true;
-            }
-
-            for (let i = 0; i < 4 && remainingMessages.length > 0; i++) {
-                createRandomBlessing();
-            }
-
-            interval = setInterval(() => {
-                if (remainingMessages.length === 0) {
-                    clearInterval(interval);
                     return;
                 }
-                const maxPopup = Math.min(Math.floor(Math.random() * 3) + 1, remainingMessages.length);
-                for (let i = 0; i < maxPopup; i++) {
-                    createRandomBlessing();
-                }
-            }, 3000);
-
-            setTimeout(() => {
-                clearInterval(interval);
-                setTimeout(() => {
-                    blessingBtn.disabled = false;
-                    blessingBtn.textContent = "再次接收祝福";
-                    remainingMessages = [...messages];
-                    musicPlayed = false;
-                    musicPreloaded = false;
-                    updateProgress(0);
-                    fetchAudio("missyouhani.mp3");
-                    startWaitPopups(); // 再次接收时重启等待弹窗
-                }, 1000);
-            }, 240000);
+                createWaitPopup();
+            }, 5000);
         }
-
-
-        function createRandomBlessing() {
-            if (remainingMessages.length === 0) return;
-
-            const template = document.querySelector('.popup-template');
-            const popup = template.querySelector('.popup-content').cloneNode(true);
-            document.body.appendChild(popup);
-
-            const randomMsgIndex = Math.floor(Math.random() * remainingMessages.length);
-            const selectedMsg = remainingMessages.splice(randomMsgIndex, 1)[0];
-            const randomColorIndex = Math.floor(Math.random() * colors.length);
-
-            popup.querySelector('.popup-message').textContent = selectedMsg;
-            popup.style.backgroundColor = colors[randomColorIndex];
-
-            const top = Math.floor(Math.random() * (window.innerHeight - 200)) + 'px';
-            const left = Math.floor(Math.random() * (window.innerWidth - 300)) + 'px';
-            popup.style.top = top;
-            popup.style.left = left;
-
-            setTimeout(() => {
-                popup.style.opacity = '1';
-                popup.style.transform = 'translateY(0)';
-            }, 10);
-
-            const closeBtn = popup.querySelector('.popup-close');
-            closeBtn.addEventListener('click', () => closePopup(popup));
-
-            let remainingTime = 10;
-            const countdown = popup.querySelector('.popup-countdown');
-            const countdownTimer = setInterval(() => {
-                remainingTime--;
-                countdown.textContent = `⏳ ${remainingTime}秒后关闭`;
-                if (remainingTime <= 0) {
-                    clearInterval(countdownTimer);
-                    closePopup(popup);
-                }
-            }, 1000);
-        }
-
 
         blessingBtn.addEventListener('click', function() {
             if (blessingBtn.disabled) return;
@@ -611,4 +554,3 @@ document.querySelector('.wait-popup-template').addEventListener('DOMContentLoade
     </script>
 </body>
 </html>
-
