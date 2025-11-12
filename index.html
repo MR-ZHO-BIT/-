@@ -267,7 +267,6 @@
             <div class="popup-countdown">⏳ 10秒后关闭</div>
         </div>
     </div>
-
     <!-- 新增：等待弹窗模板（音乐加载时显示） -->
     <div class="wait-popup-template" style="display: none;">
         <div class="popup-content wait-popup">
@@ -326,7 +325,7 @@
             "系统正在疯狂加载中！程序员小粥已经在猛敲键盘啦，再给我一丢丢时间～",
             "别急别急！我这就快马加鞭处理，再等亿秒，惊喜马上到你碗里来！",
             "哎呀呀，祝福正在慢悠悠赶路～ 马上就好，不许催我呀！",
-            "等待是为更好的展示，正在把精彩内容加载中～，",
+            "等待是为更好的展示，正在把精彩内容加载中～",
             "叮！系统已收到知意的指令，正在全力冲刺处理，稍等片刻！",
             "报告知意仙女！加载进度条正在奋力奔跑，再给它点时间，马上完成使命～",
             "咱就是说！小粥同学在偷偷给你打包祝福，加载慢是因为塞了太多甜份~ 再等等哈😜",
@@ -334,9 +333,9 @@
             "加载进度条正在摸鱼吃零食！我已经催它啦，马上揣着祝福跑过来🤣",
             "别催别催~ 系统正在给你的祝福镀上亮晶晶的糖衣，这步慢但超好看✨",
             "报告知意！加载队列排了一堆爱心，我正在挨个给它们贴“专属”标签~ 马上好😎",
-            "数据君说它想给你整个惊喜，现在在翻祝福库存找最甜的那条，稍等亿下下~",
+            "数据小弟说它想给你整个惊喜，现在在翻祝福库存找最甜的那条，稍等亿下下~",
             "程序员小粥刚把代码里的“普通加载”换成了“爱心加载”，速度慢但仪式感拉满~",
-            "加载ing！其实是我在偷偷往里面塞数据，再等亿秒就能收到双倍可爱啦🥰"
+            "加载ing！其实是我在偷偷往里面塞数据，再等亿秒就能收到双倍可爱啦🥰",
             "正在给祝福加珍珠奶茶底～ 甜度超标需要慢一点调试，马上送到你嘴边😋",
             "知意偷玩部落冲突被我抓包！已经罚她加急加载，祝福亿秒内到账🎮",
             "程序员小粥把祝福和零食搞混啦～ 正在分拣纯甜款，不含卡路里请放心😝",
@@ -345,7 +344,6 @@
             "正在把祝福加热到37℃（不冰不辣超温和）～ 适配知意专属体质，马上好🌡️",
             "知意别急！我要检查有没有漏加糖，如果不甜就要你钱，再等亿秒就好🍯"
         ];
-
         const blessingBtn = document.getElementById('blessingBtn');
         const bgMusic = document.getElementById('bgMusic');
         const progressFill = document.getElementById('progressFill');
@@ -355,13 +353,16 @@
         let remainingMessages = [...messages];
         let musicPreloaded = false;
         let waitPopupTimer = null; // 新增：等待弹窗定时器
+        // 新增：记录已显示的等待弹窗文案索引，避免重复
+        let shownWaitTextIndexes = [];
+        // 新增：标记当前是否已有等待弹窗显示，避免叠加
+        let isWaitPopupShowing = false;
 
         // 核心修改：页面加载完成后自动启动音乐预载+等待弹窗
         window.addEventListener('load', function() {
             fetchAudio("missyouhani.mp3");
             startWaitPopups(); // 启动等待弹窗轮播
         });
-
         /**
          * 优化预载流程（加快加载感知）
          * 简化stream处理，直接基于fetch进度计算，减少冗余步骤
@@ -414,13 +415,11 @@
                     alert('音乐加载失败~ 但可以正常接收祝福哦 ❤️');
                 });
         }
-
         function updateProgress(percent) {
             progressFill.style.width = `${percent}%`;
             progressHeart.style.left = `${percent}%`;
             blessingBtn.textContent = `音乐加载中（${percent}）`;
         }
-
         function startBlessings() {
             if (!musicPlayed) {
                 bgMusic.play().catch(err => {
@@ -473,23 +472,19 @@
             blessingBtn.disabled = true;
             blessingBtn.textContent = "祝福发送中🎵";
         }
-
         function createRandomBlessing() {
             if (remainingMessages.length === 0) return;
             const template = document.querySelector('.popup-template');
             const templatePopup = template.querySelector('.popup-content');
             const popup = templatePopup.cloneNode(true);
-
             // 1. 先填充内容（保证尺寸和实际内容一致）
             const randomMsgIndex = Math.floor(Math.random() * remainingMessages.length);
             const selectedMsg = remainingMessages.splice(randomMsgIndex, 1)[0];
             const randomColorIndex = Math.floor(Math.random() * colors.length);
             popup.querySelector('.popup-message').textContent = selectedMsg;
             popup.style.backgroundColor = colors[randomColorIndex];
-
             // 2. 先把弹窗添加到DOM（此时还未显示）
             document.body.appendChild(popup);
-
             // 3. 等弹窗渲染完成后，获取真实尺寸并调整位置
             setTimeout(() => {
                 const popupRect = popup.getBoundingClientRect();
@@ -503,14 +498,12 @@
                 const maxLeft = Math.max(0, viewWidth - popupWidth);
                 const top = Math.floor(Math.random() * maxTop) + 'px';
                 const left = Math.floor(Math.random() * maxLeft) + 'px';
-
                 // 设置正确位置并显示弹窗
                 popup.style.top = top;
                 popup.style.left = left;
                 popup.style.opacity = '1';
                 popup.style.transform = 'translateY(0)';
             }, 0); // 在下一帧渲染后执行
-
             // 关闭按钮逻辑
             const closeBtn = popup.querySelector('.popup-close');
             closeBtn.addEventListener('click', () => {
@@ -520,7 +513,6 @@
                     document.body.removeChild(popup);
                 }, 500);
             });
-
             // 倒计时自动关闭
             let remainingTime = 10;
             const countdown = popup.querySelector('.popup-countdown');
@@ -537,22 +529,32 @@
                 }
             }, 1000);
         }
-
-        // 新增：创建等待弹窗（随机显示逗比文案）
+        // 新增：创建等待弹窗（随机显示逗比文案，不重复、不叠加）
         function createWaitPopup() {
             const template = document.querySelector('.wait-popup-template');
             const templatePopup = template.querySelector('.popup-content');
             const popup = templatePopup.cloneNode(true);
-
-            // 1. 先填充文案
-            const randomText = waitPopupTexts[Math.floor(Math.random() * waitPopupTexts.length)];
+            // 1. 先填充文案（修改后：优先选未显示过的文案，无则重置）
+            let randomIndex;
+            // 若所有文案都显示过，重置已显示列表
+            if (shownWaitTextIndexes.length === waitPopupTexts.length) {
+                shownWaitTextIndexes = [];
+            }
+            // 循环找到未显示过的文案索引
+            do {
+                randomIndex = Math.floor(Math.random() * waitPopupTexts.length);
+            } while (shownWaitTextIndexes.includes(randomIndex));
+            // 记录已显示索引，避免重复
+            shownWaitTextIndexes.push(randomIndex);
+            const randomText = waitPopupTexts[randomIndex];
             popup.querySelector('.popup-message').textContent = randomText;
-
+            
             // 2. 先添加到DOM（未显示）
             document.body.appendChild(popup);
-
             // 3. 渲染完成后获取真实尺寸并调整位置
             setTimeout(() => {
+                // 新增：标记弹窗开始显示
+                isWaitPopupShowing = true;
                 const popupRect = popup.getBoundingClientRect();
                 const popupWidth = popupRect.width;
                 const popupHeight = popupRect.height;
@@ -563,19 +565,19 @@
                 const maxLeft = Math.max(0, viewWidth - popupWidth);
                 const top = Math.floor(Math.random() * maxTop) + 'px';
                 const left = Math.floor(Math.random() * maxLeft) + 'px';
-
                 // 设置位置并显示
                 popup.style.top = top;
                 popup.style.left = left;
                 popup.style.opacity = '1';
                 popup.style.transform = 'translateY(0)';
             }, 0);
-
-            // 关闭按钮逻辑
+            // 关闭按钮逻辑（修改后：添加弹窗关闭状态标记）
             const closeBtn = popup.querySelector('.popup-close');
-            closeBtn.addEventListener('click', () => closePopup(popup));
-
-            // 3秒自动关闭
+            closeBtn.addEventListener('click', () => {
+                isWaitPopupShowing = false; // 标记弹窗关闭
+                closePopup(popup);
+            });
+            // 3秒自动关闭（修改后：添加弹窗关闭状态标记）
             let remainingTime = 3;
             const countdown = popup.querySelector('.popup-countdown');
             const countdownTimer = setInterval(() => {
@@ -583,11 +585,11 @@
                 countdown.textContent = `⏳ ${remainingTime}秒后自动关闭`;
                 if (remainingTime <= 0 || musicPreloaded) {
                     clearInterval(countdownTimer);
+                    isWaitPopupShowing = false; // 标记弹窗关闭
                     closePopup(popup);
                 }
             }, 1000);
         }
-
         // 新增：关闭弹窗通用函数
         function closePopup(popup) {
             popup.style.opacity = '0';
@@ -596,18 +598,19 @@
                 document.body.removeChild(popup);
             }, 500);
         }
-
-        // 新增：启动等待弹窗轮播（每5秒弹一次）
+        // 新增：启动等待弹窗轮播（修改后：添加防叠加判断）
         function startWaitPopups() {
             waitPopupTimer = setInterval(() => {
                 if (musicPreloaded) {
                     clearInterval(waitPopupTimer);
                     return;
                 }
-                createWaitPopup();
+                // 新增：当前无弹窗显示时，才创建新弹窗（避免叠加）
+                if (!isWaitPopupShowing) {
+                    createWaitPopup();
+                }
             }, 5000);
         }
-
         blessingBtn.addEventListener('click', function() {
             if (blessingBtn.disabled) return;
             blessingBtn.disabled = true;
@@ -617,4 +620,3 @@
     </script>
 </body>
 </html>
-
