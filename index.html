@@ -246,8 +246,8 @@
             <p class="message">正在自动加载音乐~</p>
             <button class="btn" id="blessingBtn" disabled>音乐加载中（0）</button>
             <p class="footer">专属于你的祝福程序</p>
-            <!-- 音频标签（预载后赋值） -->
-            <audio id="bgMusic" loop>
+            <!-- 音频标签：新增preload="auto"，确保预加载完整音频 -->
+            <audio id="bgMusic" loop preload="auto">
                 您的浏览器不支持音频播放
             </audio>
         </div>
@@ -358,7 +358,6 @@
         let shownWaitTextIndexes = [];
         // 新增：标记当前是否已有等待弹窗显示，避免叠加
         let isWaitPopupShowing = false;
-
         // 新增：音乐预加载优化配置
         const audioConfig = {
             url: "missyouhani.mp3",
@@ -366,12 +365,20 @@
             chunkSize: 65536, // 分块加载大小（64KB，平衡加载速度和内存）
             preloadType: 'mediaelement' // 优先使用媒体元素预加载
         };
+        // 新增：保存ObjectURL引用，避免被垃圾回收释放
+        let audioObjectURL = null;
 
         // 核心修改：页面加载完成后自动启动音乐预载+等待弹窗（优化预载逻辑）
         window.addEventListener('load', function() {
             // 优先使用fetch分块加载（修复duration初始NaN的问题）
             fetchAudio(audioConfig.url);
             startWaitPopups(); // 启动等待弹窗轮播
+            // 新增：监听页面卸载，释放ObjectURL，避免内存泄漏
+            window.addEventListener('beforeunload', function() {
+                if (audioObjectURL) {
+                    URL.revokeObjectURL(audioObjectURL);
+                }
+            });
         });
 
         /**
@@ -389,7 +396,6 @@
                 const reader = response.body.getReader();
                 let loadedSize = 0;
                 const chunks = [];
-
                 // 分块读取+实时更新进度
                 return new ReadableStream({
                     start(controller) {
@@ -405,7 +411,6 @@
                                 // 实时计算进度（每收到一块就更新，保证进度条动起来）
                                 const percent = Math.min(Math.floor((loadedSize / totalSize) * 100), 100);
                                 updateProgress(percent);
-
                                 controller.enqueue(value);
                                 readChunk();
                             });
@@ -417,10 +422,23 @@
             .then(stream => new Response(stream))
             .then(res => res.blob())
             .then(blob => {
-                const audioUrl = URL.createObjectURL(blob);
-                bgMusic.src = audioUrl;
-                musicPreloaded = true;
-                completePreload();
+                // 保存ObjectURL引用，避免被释放
+                audioObjectURL = URL.createObjectURL(blob);
+                bgMusic.src = audioObjectURL;
+                // 新增：监听音频完全缓冲事件，确保可完整播放
+                bgMusic.addEventListener('canplaythrough', function onCanPlayThrough() {
+                    musicPreloaded = true;
+                    completePreload();
+                    // 移除重复监听
+                    bgMusic.removeEventListener('canplaythrough', onCanPlayThrough);
+                });
+                // 新增：监听音频播放中断，自动恢复
+                bgMusic.addEventListener('stalled', function() {
+                    if (musicPlayed && !bgMusic.paused) {
+                        bgMusic.currentTime = bgMusic.buffered.end(bgMusic.buffered.length - 1) || 0;
+                        bgMusic.play().catch(err => {});
+                    }
+                });
             })
             .catch(err => {
                 clearInterval(waitPopupTimer);
@@ -455,11 +473,24 @@
 
         function startBlessings() {
             if (!musicPlayed) {
-                bgMusic.play().catch(err => {
-                    alert('请点击页面空白处后再尝试~');
-                    blessingBtn.disabled = false;
-                    blessingBtn.textContent = "点击接收祝福";
-                });
+                // 新增：确保音频完全缓冲后再播放
+                if (bgMusic.readyState >= 4) { // HAVE_ENOUGH_DATA 状态
+                    bgMusic.play().catch(err => {
+                        alert('请点击页面空白处后再尝试~');
+                        blessingBtn.disabled = false;
+                        blessingBtn.textContent = "点击接收祝福";
+                    });
+                } else {
+                    // 若未完全缓冲，监听缓冲完成后播放
+                    bgMusic.addEventListener('canplaythrough', function onPlayReady() {
+                        bgMusic.play().catch(err => {
+                            alert('请点击页面空白处后再尝试~');
+                            blessingBtn.disabled = false;
+                            blessingBtn.textContent = "点击接收祝福";
+                        });
+                        bgMusic.removeEventListener('canplaythrough', onPlayReady);
+                    });
+                }
                 musicPlayed = true;
             }
             let isSecondRound = false; // 标记是否为第二遍弹窗
@@ -660,4 +691,3 @@
     </script>
 </body>
 </html>
-
