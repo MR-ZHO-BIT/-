@@ -267,14 +267,14 @@
             <div class="popup-countdown">⏳ 10秒后关闭</div>
         </div>
     </div>
-    <!-- 新增：等待弹窗模板（音乐加载时显示） -->
+    <!-- 新增：等待弹窗模板（音乐加载时显示）- 已修改倒计时文本 -->
     <div class="wait-popup-template" style="display: none;">
         <div class="popup-content wait-popup">
             <div class="decoration" style="top: 10px; right: 15px;">💖</div>
             <div class="popup-title">稍等一下下~</div>
             <div class="popup-message"></div>
             <button class="popup-close">知道啦~</button>
-            <div class="popup-countdown">⏳ 3秒后自动关闭</div>
+            <div class="popup-countdown">⏳ 4秒后自动关闭</div>
         </div>
     </div>
     
@@ -357,7 +357,6 @@
         let shownWaitTextIndexes = [];
         // 新增：标记当前是否已有等待弹窗显示，避免叠加
         let isWaitPopupShowing = false;
-
         // 核心修改：页面加载完成后自动启动音乐预载+等待弹窗
         window.addEventListener('load', function() {
             fetchAudio("missyouhani.mp3");
@@ -577,8 +576,8 @@
                 isWaitPopupShowing = false; // 标记弹窗关闭
                 closePopup(popup);
             });
-            // 3秒自动关闭（修改后：添加弹窗关闭状态标记）
-            let remainingTime = 3;
+            // 4秒自动关闭（核心修改：将3改为4）
+            let remainingTime = 4;
             const countdown = popup.querySelector('.popup-countdown');
             const countdownTimer = setInterval(() => {
                 remainingTime--;
