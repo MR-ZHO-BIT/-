@@ -357,68 +357,154 @@
         let shownWaitTextIndexes = [];
         // 新增：标记当前是否已有等待弹窗显示，避免叠加
         let isWaitPopupShowing = false;
-        // 核心修改：页面加载完成后自动启动音乐预载+等待弹窗
+
+        // 新增：音乐预加载优化配置
+        const audioConfig = {
+            url: "missyouhani.mp3",
+            timeout: 15000, // 加载超时时间（15秒）
+            chunkSize: 65536, // 分块加载大小（64KB，平衡加载速度和内存）
+            preloadType: 'mediaelement' // 优先使用媒体元素预加载
+        };
+
+        // 核心修改：页面加载完成后自动启动音乐预载+等待弹窗（优化预载逻辑）
         window.addEventListener('load', function() {
-            fetchAudio("missyouhani.mp3");
+            // 优先尝试媒体元素预加载（更快启动）
+            if (bgMusic.canPlayType('audio/mpeg')) {
+                fastAudioPreload();
+            } else {
+                // 降级使用fetch分块加载
+                fetchAudio(audioConfig.url);
+            }
             startWaitPopups(); // 启动等待弹窗轮播
         });
+
         /**
-         * 优化预载流程（加快加载感知）
-         * 简化stream处理，直接基于fetch进度计算，减少冗余步骤
+         * 新增：快速预加载函数（利用audio元素原生预加载能力）
+         * 比fetch分块加载更快，优先使用
+         */
+        function fastAudioPreload() {
+            // 直接设置src并触发预加载
+            bgMusic.src = audioConfig.url;
+            bgMusic.preload = 'auto'; // 强制预加载
+
+            // 监听加载进度
+            bgMusic.addEventListener('progress', function() {
+                if (bgMusic.buffered.length > 0) {
+                    const loadedPercent = Math.floor((bgMusic.buffered.end(bgMusic.buffered.length - 1) / bgMusic.duration) * 100);
+                    updateProgress(loadedPercent);
+                    // 加载完成80%即可视为预载完成（提前解锁按钮）
+                    if (loadedPercent >= 80 && !musicPreloaded) {
+                        musicPreloaded = true;
+                        completePreload();
+                    }
+                }
+            });
+
+            // 加载完成监听
+            bgMusic.addEventListener('canplaythrough', function() {
+                if (!musicPreloaded) {
+                    musicPreloaded = true;
+                    completePreload();
+                }
+            });
+
+            // 加载失败降级处理
+            bgMusic.addEventListener('error', function() {
+                console.log('媒体元素预载失败，降级为fetch加载');
+                fetchAudio(audioConfig.url);
+            });
+
+            // 超时处理
+            setTimeout(function() {
+                if (!musicPreloaded) {
+                    console.log('预载超时，降级为fetch加载');
+                    bgMusic.removeEventListener('progress', arguments.callee);
+                    fetchAudio(audioConfig.url);
+                }
+            }, audioConfig.timeout);
+        }
+
+        /**
+         * 优化：fetch分块加载（提升加载效率，减少冗余）
          */
         function fetchAudio(audioUrl) {
-            fetch(audioUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error("音频加载失败");
-                    const totalSize = parseInt(response.headers.get('content-length'), 10) || 1;
-                    const reader = response.body.getReader();
-                    let loadedSize = 0;
-                    // 简化读取逻辑，加快进度反馈
-                    return new ReadableStream({
-                        start(controller) {
-                            const readChunk = () => {
-                                reader.read().then(({ done, value }) => {
-                                    if (done) {
-                                        controller.close();
-                                        return;
-                                    }
-                                    loadedSize += value.length;
+            fetch(audioUrl, {
+                method: 'GET',
+                mode: 'cors',
+                cache: 'force-cache' // 强制缓存，避免重复请求
+            })
+            .then(response => {
+                if (!response.ok) throw new Error("音频加载失败");
+                const totalSize = parseInt(response.headers.get('content-length'), 10) || 1;
+                const reader = response.body.getReader();
+                let loadedSize = 0;
+                const chunks = [];
+
+                // 优化分块读取逻辑，批量处理chunk
+                return new ReadableStream({
+                    start(controller) {
+                        const readChunk = () => {
+                            reader.read().then(({ done, value }) => {
+                                if (done) {
+                                    controller.close();
+                                    return;
+                                }
+                                chunks.push(value);
+                                loadedSize += value.length;
+                                
+                                // 每加载64KB更新一次进度（减少DOM操作开销）
+                                if (loadedSize % audioConfig.chunkSize === 0) {
                                     const percent = Math.min(Math.floor((loadedSize / totalSize) * 100), 100);
-                                    updateProgress(percent); // 实时同步进度
-                                    
-                                    controller.enqueue(value);
-                                    readChunk(); // 无延迟继续读取，加快加载流程
-                                });
-                            };
-                            readChunk();
-                        }
-                    });
-                })
-                .then(stream => new Response(stream))
-                .then(res => res.blob())
-                .then(blob => {
-                    // 预载完成后立即赋值音频，减少等待
-                    const audioUrl = URL.createObjectURL(blob);
-                    bgMusic.src = audioUrl;
-                    musicPreloaded = true;
-                    clearInterval(waitPopupTimer); // 音乐加载完，停止等待弹窗
-                    updateProgress(100);
-                    blessingBtn.disabled = false;
-                    blessingBtn.textContent = "点击接收祝福";
-                })
-                .catch(err => {
-                    clearInterval(waitPopupTimer); // 加载失败也停止弹窗
-                    updateProgress(100);
-                    blessingBtn.disabled = false;
-                    blessingBtn.textContent = "点击接收祝福";
-                    alert('音乐加载失败~ 但可以正常接收祝福哦 ❤️');
+                                    updateProgress(percent);
+                                }
+
+                                controller.enqueue(value);
+                                readChunk();
+                            });
+                        };
+                        readChunk();
+                    }
                 });
+            })
+            .then(stream => new Response(stream))
+            .then(res => res.blob())
+            .then(blob => {
+                const audioUrl = URL.createObjectURL(blob);
+                bgMusic.src = audioUrl;
+                musicPreloaded = true;
+                completePreload();
+            })
+            .catch(err => {
+                clearInterval(waitPopupTimer);
+                updateProgress(100);
+                blessingBtn.disabled = false;
+                blessingBtn.textContent = "点击接收祝福";
+                alert('音乐加载失败~ 但可以正常接收祝福哦 ❤️');
+            });
         }
+
+        /**
+         * 新增：预载完成统一处理函数（减少代码冗余）
+         */
+        function completePreload() {
+            clearInterval(waitPopupTimer);
+            updateProgress(100);
+            blessingBtn.disabled = false;
+            blessingBtn.textContent = "点击接收祝福";
+            // 关闭当前显示的等待弹窗
+            const activeWaitPopup = document.querySelector('.wait-popup');
+            if (activeWaitPopup) {
+                isWaitPopupShowing = false;
+                closePopup(activeWaitPopup);
+            }
+        }
+
         function updateProgress(percent) {
             progressFill.style.width = `${percent}%`;
             progressHeart.style.left = `${percent}%`;
             blessingBtn.textContent = `音乐加载中（${percent}）`;
         }
+
         function startBlessings() {
             if (!musicPlayed) {
                 bgMusic.play().catch(err => {
@@ -456,7 +542,11 @@
                             musicPreloaded = false;
                             updateProgress(0);
                             // 再次接收时自动预载+重启等待弹窗
-                            fetchAudio("missyouhani.mp3");
+                            if (bgMusic.canPlayType('audio/mpeg')) {
+                                fastAudioPreload();
+                            } else {
+                                fetchAudio(audioConfig.url);
+                            }
                             startWaitPopups();
                         }, 1000);
                         return;
@@ -471,6 +561,7 @@
             blessingBtn.disabled = true;
             blessingBtn.textContent = "祝福发送中🎵";
         }
+
         function createRandomBlessing() {
             if (remainingMessages.length === 0) return;
             const template = document.querySelector('.popup-template');
@@ -528,6 +619,7 @@
                 }
             }, 1000);
         }
+
         // 新增：创建等待弹窗（随机显示逗比文案，不重复、不叠加）
         function createWaitPopup() {
             const template = document.querySelector('.wait-popup-template');
@@ -589,14 +681,18 @@
                 }
             }, 1000);
         }
+
         // 新增：关闭弹窗通用函数
         function closePopup(popup) {
             popup.style.opacity = '0';
             popup.style.transform = 'translateY(20px)';
             setTimeout(() => {
-                document.body.removeChild(popup);
+                if (document.body.contains(popup)) {
+                    document.body.removeChild(popup);
+                }
             }, 500);
         }
+
         // 新增：启动等待弹窗轮播（修改后：添加防叠加判断）
         function startWaitPopups() {
             waitPopupTimer = setInterval(() => {
@@ -610,6 +706,7 @@
                 }
             }, 5000);
         }
+
         blessingBtn.addEventListener('click', function() {
             if (blessingBtn.disabled) return;
             blessingBtn.disabled = true;
