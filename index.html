@@ -246,8 +246,8 @@
             <p class="message">正在自动加载音乐~</p>
             <button class="btn" id="blessingBtn" disabled>音乐加载中（0）</button>
             <p class="footer">专属于你的祝福程序</p>
-            <!-- 音频标签：强化预加载配置 -->
-            <audio id="bgMusic" loop preload="auto" controlsList="nodownload">
+            <!-- 音频标签：简化配置，确保基础播放 -->
+            <audio id="bgMusic" loop preload="auto">
                 您的浏览器不支持音频播放
             </audio>
         </div>
@@ -267,7 +267,7 @@
             <div class="popup-countdown">⏳ 10秒后关闭</div>
         </div>
     </div>
-    <!-- 新增：等待弹窗模板（音乐加载时显示）- 已修改倒计时文本 -->
+    <!-- 等待弹窗模板 -->
     <div class="wait-popup-template" style="display: none;">
         <div class="popup-content wait-popup">
             <div class="decoration" style="top: 10px; right: 15px;">💖</div>
@@ -321,7 +321,6 @@
             "#FFB5C2", "#A0E7E5", "#FFC8A2", "#B4E8E6", "#FFC6D9",
             "#C5E0D8", "#FFB8C6", "#B8DFD8", "#FFD3B6", "#D6EADF"
         ];
-        // 新增+原有：逗比等待弹窗文案（保留所有内容，新增8条）
         const waitPopupTexts = [
             "系统正在疯狂加载中！程序员小粥已经在猛敲键盘啦，再给我一丢丢时间～",
             "别急别急！我这就快马加鞭处理，再等亿秒，惊喜马上到你碗里来！",
@@ -359,19 +358,15 @@
         const audioConfig = {
             url: "missyouhani.mp3",
             timeout: 15000,
-            chunkSize: 65536,
-            preloadType: 'mediaelement'
+            chunkSize: 65536
         };
         let audioObjectURL = null;
-        // 新增：播放状态监控定时器
         let playMonitorTimer = null;
-        // 新增：最小缓冲阈值（秒），确保至少有10秒缓冲
-        const MIN_BUFFER_THRESHOLD = 10;
+        const MIN_BUFFER_THRESHOLD = 5; // 降低缓冲阈值，适配小体积音频
 
         window.addEventListener('load', function() {
             fetchAudio(audioConfig.url);
             startWaitPopups();
-            // 新增：监听页面可见性变化，恢复播放
             document.addEventListener('visibilitychange', handleVisibilityChange);
             window.addEventListener('beforeunload', function() {
                 if (audioObjectURL) URL.revokeObjectURL(audioObjectURL);
@@ -380,7 +375,7 @@
         });
 
         /**
-         * 优化：fetch分块加载+完整音频校验
+         * 修复：去掉文件大小/时长校验，恢复基础加载逻辑
          */
         function fetchAudio(audioUrl) {
             fetch(audioUrl, {
@@ -389,12 +384,8 @@
                 cache: 'force-cache'
             })
             .then(response => {
-                if (!response.ok) throw new Error("音频加载失败");
-                // 新增：校验音频文件大小（4分钟MP3约3-6MB，此处设最小3MB阈值）
-                const totalSize = parseInt(response.headers.get('content-length'), 10) || 0;
-                if (totalSize > 0 && totalSize < 3 * 1024 * 1024) {
-                    throw new Error("音频文件不完整");
-                }
+                if (!response.ok) throw new Error("音频加载失败（网络问题）");
+                const totalSize = parseInt(response.headers.get('content-length'), 10) || 1;
                 const reader = response.body.getReader();
                 let loadedSize = 0;
                 const chunks = [];
@@ -409,7 +400,7 @@
                                 }
                                 chunks.push(value);
                                 loadedSize += value.length;
-                                const percent = Math.min(Math.floor((loadedSize / (totalSize || 1)) * 100), 100);
+                                const percent = Math.min(Math.floor((loadedSize / totalSize) * 100), 100);
                                 updateProgress(percent);
                                 controller.enqueue(value);
                                 readChunk();
@@ -422,26 +413,19 @@
             .then(stream => new Response(stream))
             .then(res => res.blob())
             .then(blob => {
-                // 新增：校验blob完整性
-                if (blob.size < 3 * 1024 * 1024) throw new Error("音频缓冲不完整");
                 audioObjectURL = URL.createObjectURL(blob);
                 bgMusic.src = audioObjectURL;
                 
-                // 监听完全缓冲事件（必须缓冲完成才标记预载完成）
+                // 仅监听缓冲完成，不校验时长/大小
                 bgMusic.addEventListener('canplaythrough', function onCanPlayThrough() {
-                    // 新增：确认音频时长（4分钟约240秒，允许±30秒误差）
-                    if (bgMusic.duration && (bgMusic.duration < 210 || bgMusic.duration > 270)) {
-                        throw new Error("音频时长异常");
-                    }
                     musicPreloaded = true;
                     completePreload();
                     bgMusic.removeEventListener('canplaythrough', onCanPlayThrough);
                 });
 
-                // 增强：缓冲不足时自动等待
+                // 保留缓冲/播放异常处理
                 bgMusic.addEventListener('waiting', function() {
                     if (musicPlayed && !bgMusic.paused) {
-                        // 等待缓冲达到阈值后恢复播放
                         const checkBuffer = setInterval(() => {
                             if (bgMusic.buffered.length > 0) {
                                 const bufferedEnd = bgMusic.buffered.end(bgMusic.buffered.length - 1);
@@ -455,7 +439,6 @@
                     }
                 });
 
-                // 增强：播放中断恢复
                 bgMusic.addEventListener('stalled', function() {
                     if (musicPlayed && !bgMusic.paused) {
                         const lastBuffered = bgMusic.buffered.length > 0 
@@ -466,7 +449,6 @@
                     }
                 });
 
-                // 增强：loop异常处理
                 bgMusic.addEventListener('ended', function() {
                     if (musicPlayed && bgMusic.loop) {
                         bgMusic.currentTime = 0;
@@ -479,7 +461,7 @@
                 updateProgress(100);
                 blessingBtn.disabled = false;
                 blessingBtn.textContent = "点击接收祝福";
-                alert(`音乐加载异常：${err.message}~ 仍可接收祝福哦 ❤️`);
+                alert(`音乐加载提示：${err.message}~ 仍可接收祝福哦 ❤️`);
             });
         }
 
@@ -503,19 +485,17 @@
 
         function startBlessings() {
             if (!musicPlayed) {
-                // 强制等待音频完全缓冲
-                if (bgMusic.readyState >= 4 && bgMusic.duration) {
+                if (bgMusic.readyState >= 2) { // 只要能播放片段就启动（降低门槛）
                     startAudioPlay();
                 } else {
-                    bgMusic.addEventListener('canplaythrough', function onPlayReady() {
-                        if (bgMusic.duration) startAudioPlay();
-                        bgMusic.removeEventListener('canplaythrough', onPlayReady);
+                    bgMusic.addEventListener('canplay', function onPlayReady() {
+                        startAudioPlay();
+                        bgMusic.removeEventListener('canplay', onPlayReady);
                     });
                 }
                 musicPlayed = true;
             }
 
-            // 原有弹窗逻辑不变...
             let isSecondRound = false;
             for (let i = 0; i < 4 && remainingMessages.length > 0; i++) {
                 createRandomBlessing();
@@ -554,50 +534,42 @@
             blessingBtn.textContent = "祝福发送中🎵";
         }
 
-        // 新增：音频播放启动+监控
         function startAudioPlay() {
             bgMusic.play().catch(err => {
-                alert('请点击页面空白处后再尝试~');
+                alert('请点击页面空白处后再尝试播放音乐~');
                 blessingBtn.disabled = false;
                 blessingBtn.textContent = "点击接收祝福";
                 musicPlayed = false;
             });
-            // 启动播放监控（每2秒检查一次）
             playMonitorTimer = setInterval(monitorAudioPlay, 2000);
         }
 
-        // 新增：播放状态监控
         function monitorAudioPlay() {
             if (!musicPlayed) {
                 clearInterval(playMonitorTimer);
                 return;
             }
-            // 1. 检查是否应该播放但暂停了
             if (bgMusic.paused && !bgMusic.ended) {
                 bgMusic.play().catch(err => {});
             }
-            // 2. 检查缓冲是否充足
             if (bgMusic.buffered.length > 0) {
                 const currentTime = bgMusic.currentTime;
                 const bufferedEnd = bgMusic.buffered.end(bgMusic.buffered.length - 1);
                 const bufferLeft = bufferedEnd - currentTime;
-                // 缓冲不足时，跳转到已缓冲位置继续
                 if (bufferLeft < MIN_BUFFER_THRESHOLD && currentTime > 0) {
                     bgMusic.currentTime = Math.max(0, bufferedEnd - MIN_BUFFER_THRESHOLD / 2);
                 }
             }
-            // 3. 检查音频是否正常（避免静音或音量为0）
             if (bgMusic.volume === 0) bgMusic.volume = 1;
         }
 
-        // 新增：页面可见性变化处理
         function handleVisibilityChange() {
             if (musicPlayed && !document.hidden && bgMusic.paused && !bgMusic.ended) {
                 bgMusic.play().catch(err => {});
             }
         }
 
-        // 原有函数（createRandomBlessing、createWaitPopup、closePopup、startWaitPopups）不变...
+        // 原有弹窗/工具函数不变
         function createRandomBlessing() {
             if (remainingMessages.length === 0) return;
             const template = document.querySelector('.popup-template');
