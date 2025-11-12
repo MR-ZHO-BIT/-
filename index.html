@@ -368,64 +368,13 @@
 
         // 核心修改：页面加载完成后自动启动音乐预载+等待弹窗（优化预载逻辑）
         window.addEventListener('load', function() {
-            // 优先尝试媒体元素预加载（更快启动）
-            if (bgMusic.canPlayType('audio/mpeg')) {
-                fastAudioPreload();
-            } else {
-                // 降级使用fetch分块加载
-                fetchAudio(audioConfig.url);
-            }
+            // 优先使用fetch分块加载（修复duration初始NaN的问题）
+            fetchAudio(audioConfig.url);
             startWaitPopups(); // 启动等待弹窗轮播
         });
 
         /**
-         * 新增：快速预加载函数（利用audio元素原生预加载能力）
-         * 比fetch分块加载更快，优先使用
-         */
-        function fastAudioPreload() {
-            // 直接设置src并触发预加载
-            bgMusic.src = audioConfig.url;
-            bgMusic.preload = 'auto'; // 强制预加载
-
-            // 监听加载进度
-            bgMusic.addEventListener('progress', function() {
-                if (bgMusic.buffered.length > 0) {
-                    const loadedPercent = Math.floor((bgMusic.buffered.end(bgMusic.buffered.length - 1) / bgMusic.duration) * 100);
-                    updateProgress(loadedPercent);
-                    // 加载完成80%即可视为预载完成（提前解锁按钮）
-                    if (loadedPercent >= 80 && !musicPreloaded) {
-                        musicPreloaded = true;
-                        completePreload();
-                    }
-                }
-            });
-
-            // 加载完成监听
-            bgMusic.addEventListener('canplaythrough', function() {
-                if (!musicPreloaded) {
-                    musicPreloaded = true;
-                    completePreload();
-                }
-            });
-
-            // 加载失败降级处理
-            bgMusic.addEventListener('error', function() {
-                console.log('媒体元素预载失败，降级为fetch加载');
-                fetchAudio(audioConfig.url);
-            });
-
-            // 超时处理
-            setTimeout(function() {
-                if (!musicPreloaded) {
-                    console.log('预载超时，降级为fetch加载');
-                    bgMusic.removeEventListener('progress', arguments.callee);
-                    fetchAudio(audioConfig.url);
-                }
-            }, audioConfig.timeout);
-        }
-
-        /**
-         * 优化：fetch分块加载（提升加载效率，减少冗余）
+         * 优化：fetch分块加载（提升加载效率，同时保证进度条正常显示）
          */
         function fetchAudio(audioUrl) {
             fetch(audioUrl, {
@@ -440,7 +389,7 @@
                 let loadedSize = 0;
                 const chunks = [];
 
-                // 优化分块读取逻辑，批量处理chunk
+                // 分块读取+实时更新进度
                 return new ReadableStream({
                     start(controller) {
                         const readChunk = () => {
@@ -452,11 +401,9 @@
                                 chunks.push(value);
                                 loadedSize += value.length;
                                 
-                                // 每加载64KB更新一次进度（减少DOM操作开销）
-                                if (loadedSize % audioConfig.chunkSize === 0) {
-                                    const percent = Math.min(Math.floor((loadedSize / totalSize) * 100), 100);
-                                    updateProgress(percent);
-                                }
+                                // 实时计算进度（每收到一块就更新，保证进度条动起来）
+                                const percent = Math.min(Math.floor((loadedSize / totalSize) * 100), 100);
+                                updateProgress(percent);
 
                                 controller.enqueue(value);
                                 readChunk();
@@ -542,11 +489,7 @@
                             musicPreloaded = false;
                             updateProgress(0);
                             // 再次接收时自动预载+重启等待弹窗
-                            if (bgMusic.canPlayType('audio/mpeg')) {
-                                fastAudioPreload();
-                            } else {
-                                fetchAudio(audioConfig.url);
-                            }
+                            fetchAudio(audioConfig.url);
                             startWaitPopups();
                         }, 1000);
                         return;
