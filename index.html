@@ -362,8 +362,8 @@
         };
         let audioObjectURL = null;
         let playMonitorTimer = null;
-        const MIN_BUFFER_THRESHOLD = 5; // 降低缓冲阈值，适配小体积音频
-
+        const MIN_BUFFER_THRESHOLD = 8; // 提高缓冲阈值，增加缓冲储备
+        let retryCount = 0; // 加载重试计数器
         window.addEventListener('load', function() {
             fetchAudio(audioConfig.url);
             startWaitPopups();
@@ -373,9 +373,8 @@
                 if (playMonitorTimer) clearInterval(playMonitorTimer);
             });
         });
-
         /**
-         * 修复：去掉文件大小/时长校验，恢复基础加载逻辑
+         * 修复：去掉文件大小/时长校验，恢复基础加载逻辑+增加重试机制
          */
         function fetchAudio(audioUrl) {
             fetch(audioUrl, {
@@ -389,7 +388,6 @@
                 const reader = response.body.getReader();
                 let loadedSize = 0;
                 const chunks = [];
-
                 return new ReadableStream({
                     start(controller) {
                         const readChunk = () => {
@@ -422,23 +420,22 @@
                     completePreload();
                     bgMusic.removeEventListener('canplaythrough', onCanPlayThrough);
                 });
-
                 // 保留缓冲/播放异常处理
                 bgMusic.addEventListener('waiting', function() {
                     if (musicPlayed && !bgMusic.paused) {
+                        bgMusic.pause(); // 缓冲不足时先暂停，避免卡断
                         const checkBuffer = setInterval(() => {
                             if (bgMusic.buffered.length > 0) {
                                 const bufferedEnd = bgMusic.buffered.end(bgMusic.buffered.length - 1);
                                 const bufferLeft = bufferedEnd - bgMusic.currentTime;
                                 if (bufferLeft >= MIN_BUFFER_THRESHOLD) {
                                     clearInterval(checkBuffer);
-                                    bgMusic.play().catch(err => {});
+                                    bgMusic.play().catch(err => {}); // 缓冲够了再播放
                                 }
                             }
-                        }, 500);
+                        }, 1000); // 每秒检查1次，更及时
                     }
                 });
-
                 bgMusic.addEventListener('stalled', function() {
                     if (musicPlayed && !bgMusic.paused) {
                         const lastBuffered = bgMusic.buffered.length > 0 
@@ -448,7 +445,6 @@
                         bgMusic.play().catch(err => {});
                     }
                 });
-
                 bgMusic.addEventListener('ended', function() {
                     if (musicPlayed && bgMusic.loop) {
                         bgMusic.currentTime = 0;
@@ -458,13 +454,23 @@
             })
             .catch(err => {
                 clearInterval(waitPopupTimer);
-                updateProgress(100);
-                blessingBtn.disabled = false;
-                blessingBtn.textContent = "点击接收祝福";
-                alert(`音乐加载提示：${err.message}~ 仍可接收祝福哦 ❤️`);
+                updateProgress(0);
+                // 加载失败重试（最多2次）
+                if (retryCount < 2) {
+                    retryCount++;
+                    setTimeout(() => {
+                        alert(`音乐加载失败，正在第${retryCount}次重试~ ❤️`);
+                        fetchAudio(audioConfig.url);
+                        startWaitPopups();
+                    }, 1500);
+                } else {
+                    // 重试2次仍失败，直接开放祝福功能
+                    blessingBtn.disabled = false;
+                    blessingBtn.textContent = "点击接收祝福";
+                    alert(`音乐加载提示：${err.message}~ 已开放无音乐模式，仍可接收祝福哦 ❤️`);
+                }
             });
         }
-
         function completePreload() {
             clearInterval(waitPopupTimer);
             updateProgress(100);
@@ -476,13 +482,11 @@
                 closePopup(activeWaitPopup);
             }
         }
-
         function updateProgress(percent) {
             progressFill.style.width = `${percent}%`;
             progressHeart.style.left = `${percent}%`;
             blessingBtn.textContent = `音乐加载中（${percent}）`;
         }
-
         function startBlessings() {
             if (!musicPlayed) {
                 if (bgMusic.readyState >= 2) { // 只要能播放片段就启动（降低门槛）
@@ -495,7 +499,6 @@
                 }
                 musicPlayed = true;
             }
-
             let isSecondRound = false;
             for (let i = 0; i < 4 && remainingMessages.length > 0; i++) {
                 createRandomBlessing();
@@ -518,6 +521,7 @@
                             musicPlayed = false;
                             musicPreloaded = false;
                             updateProgress(0);
+                            retryCount = 0; // 重置重试计数器
                             if (playMonitorTimer) clearInterval(playMonitorTimer);
                             fetchAudio(audioConfig.url);
                             startWaitPopups();
@@ -533,7 +537,6 @@
             blessingBtn.disabled = true;
             blessingBtn.textContent = "祝福发送中🎵";
         }
-
         function startAudioPlay() {
             bgMusic.play().catch(err => {
                 alert('请点击页面空白处后再尝试播放音乐~');
@@ -541,34 +544,34 @@
                 blessingBtn.textContent = "点击接收祝福";
                 musicPlayed = false;
             });
-            playMonitorTimer = setInterval(monitorAudioPlay, 2000);
+            playMonitorTimer = setInterval(monitorAudioPlay, 1000); // 缩短监控间隔
         }
-
+        // 优化播放监控：缓冲不足时暂停，足够时恢复
         function monitorAudioPlay() {
             if (!musicPlayed) {
                 clearInterval(playMonitorTimer);
                 return;
             }
-            if (bgMusic.paused && !bgMusic.ended) {
-                bgMusic.play().catch(err => {});
-            }
             if (bgMusic.buffered.length > 0) {
                 const currentTime = bgMusic.currentTime;
                 const bufferedEnd = bgMusic.buffered.end(bgMusic.buffered.length - 1);
                 const bufferLeft = bufferedEnd - currentTime;
-                if (bufferLeft < MIN_BUFFER_THRESHOLD && currentTime > 0) {
-                    bgMusic.currentTime = Math.max(0, bufferedEnd - MIN_BUFFER_THRESHOLD / 2);
+                // 缓冲不足时主动暂停等待
+                if (bufferLeft < MIN_BUFFER_THRESHOLD && !bgMusic.paused) {
+                    bgMusic.pause();
+                }
+                // 缓冲足够时恢复播放
+                if (bufferLeft >= MIN_BUFFER_THRESHOLD && bgMusic.paused && !bgMusic.ended) {
+                    bgMusic.play().catch(err => {});
                 }
             }
             if (bgMusic.volume === 0) bgMusic.volume = 1;
         }
-
         function handleVisibilityChange() {
             if (musicPlayed && !document.hidden && bgMusic.paused && !bgMusic.ended) {
                 bgMusic.play().catch(err => {});
             }
         }
-
         // 原有弹窗/工具函数不变
         function createRandomBlessing() {
             if (remainingMessages.length === 0) return;
@@ -619,7 +622,6 @@
                 }
             }, 1000);
         }
-
         function createWaitPopup() {
             const template = document.querySelector('.wait-popup-template');
             const templatePopup = template.querySelector('.popup-content');
@@ -666,7 +668,6 @@
                 }
             }, 1000);
         }
-
         function closePopup(popup) {
             popup.style.opacity = '0';
             popup.style.transform = 'translateY(20px)';
@@ -674,7 +675,6 @@
                 if (document.body.contains(popup)) document.body.removeChild(popup);
             }, 500);
         }
-
         function startWaitPopups() {
             waitPopupTimer = setInterval(() => {
                 if (musicPreloaded) {
@@ -684,7 +684,6 @@
                 if (!isWaitPopupShowing) createWaitPopup();
             }, 5000);
         }
-
         blessingBtn.addEventListener('click', function() {
             if (blessingBtn.disabled) return;
             blessingBtn.disabled = true;
@@ -694,5 +693,3 @@
     </script>
 </body>
 </html>
-
-
