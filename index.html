@@ -102,6 +102,7 @@
             background: #ffccd5;
             border-radius: 10px;
             width: 0;
+            transition: width 0.3s ease; /* 进度条平滑过渡 */
         }
         .progress-heart {
             position: absolute;
@@ -110,6 +111,7 @@
             left: 0;
             font-size: 16px;
             z-index: 3;
+            transition: left 0.3s ease; /* 爱心跟随平滑 */
         }
         
         .message {
@@ -325,8 +327,8 @@
             "别自己生闷气，找我说说话，我不会聊天，但我喜欢你的倾述 😊",
             "笑一笑，烦恼全跑掉 😄",
             "做事不冲动，这句话也适用我 😬",
-            "一切都会越来越好，正如悲伤可以被时间洗涤 ❤️ ", // 补全逗号
-            "这世界不停开花，我想放进你心里一朵 🌹 " // 补全逗号
+            "一切都会越来越好，正如悲伤可以被时间洗涤 ❤️ ",
+            "这世界不停开花，我想放进你心里一朵 🌹 "
         ];
 
         const colors = [
@@ -365,43 +367,64 @@
         const progressFill = document.getElementById('progressFill');
         const progressHeart = document.getElementById('progressHeart');
         let interval = null;
-        let musicPlayed = false; // 音乐是否已开始播放
+        let musicPlayed = false; 
         let remainingMessages = [...messages];
-        let musicPreloaded = false; // 音乐是否预加载完成
+        let musicPreloaded = false; 
         let waitPopupTimer = null;
         let shownWaitTextIndexes = [];
         let isWaitPopupShowing = false;
         const audioConfig = {
-            url: "missyouhani.mp3", // 注意：确保这个音频文件和HTML文件在同一目录，否则改绝对路径
-            timeout: 15000,
-            chunkSize: 65536
+            url: "missyouhani.mp3", 
+            timeout: 8000, // 缩短音频加载超时时间
+            chunkSize: 131072 // 增大流式加载的块大小，减少请求次数
         };
         let audioObjectURL = null;
         let playMonitorTimer = null;
-        const MIN_BUFFER_THRESHOLD = 5; // 合理缓冲阈值，避免过度暂停
-
+        const MIN_BUFFER_THRESHOLD = 3; // 降低缓冲阈值，减少等待
+        let fakeProgressTimer = null; // 假进度条定时器（防止音频加载卡住）
 
         // 页面加载时初始化
         window.addEventListener('load', function() {
             fetchAudio(audioConfig.url);
             startWaitPopups();
+            startFakeProgress(); // 启动假进度条兜底
             document.addEventListener('visibilitychange', handleVisibilityChange);
-            // 页面卸载时释放资源
             window.addEventListener('beforeunload', function() {
                 if (audioObjectURL) URL.revokeObjectURL(audioObjectURL);
                 if (playMonitorTimer) clearInterval(playMonitorTimer);
+                if (fakeProgressTimer) clearInterval(fakeProgressTimer);
             });
         });
 
+        // 假进度条：音频加载卡住时自动推进，避免进度条不动
+        function startFakeProgress() {
+            let fakePercent = 0;
+            fakeProgressTimer = setInterval(() => {
+                if (musicPreloaded || fakePercent >= 90) { // 到90%停止，等真实加载完成
+                    clearInterval(fakeProgressTimer);
+                    return;
+                }
+                fakePercent += Math.floor(Math.random() * 3) + 1; // 随机1-3%推进
+                fakePercent = Math.min(fakePercent, 90);
+                // 只有真实进度更低时才更新
+                const realPercent = parseInt(progressFill.style.width) || 0;
+                if (fakePercent > realPercent) {
+                    progressFill.style.width = `${fakePercent}%`;
+                    progressHeart.style.left = `${fakePercent}%`;
+                    blessingBtn.textContent = `音乐加载中（${fakePercent}）`;
+                }
+            }, 1000);
+        }
 
         /**
-         * 音频加载：简化逻辑，只保证加载和缓冲，不重复加载
+         * 音频加载优化：增大块大小、缩短超时、优先加载
          */
         function fetchAudio(audioUrl) {
             fetch(audioUrl, {
                 method: 'GET',
                 mode: 'cors',
-                cache: 'force-cache'
+                cache: 'force-cache',
+                priority: 'high' // 高优先级请求音频
             })
             .then(response => {
                 if (!response.ok) throw new Error("音频加载失败（网络问题）");
@@ -409,7 +432,6 @@
                 const reader = response.body.getReader();
                 let loadedSize = 0;
                 const chunks = [];
-
 
                 return new ReadableStream({
                     start(controller) {
@@ -437,15 +459,13 @@
                 audioObjectURL = URL.createObjectURL(blob);
                 bgMusic.src = audioObjectURL;
                 
-                // 缓冲完成后标记预加载完成
-                bgMusic.addEventListener('canplaythrough', function onCanPlayThrough() {
+                // 缓冲完成后标记预加载完成（降低缓冲要求）
+                bgMusic.addEventListener('canplay', function onCanPlay() {
                     musicPreloaded = true;
                     completePreload();
-                    bgMusic.removeEventListener('canplaythrough', onCanPlayThrough);
+                    bgMusic.removeEventListener('canplay', onCanPlay);
                 });
 
-
-                // 缓冲不足时仅等待，不暂停（减少干预）
                 bgMusic.addEventListener('waiting', function() {
                     if (musicPlayed && !bgMusic.paused) {
                         const checkBuffer = setInterval(() => {
@@ -456,20 +476,16 @@
                                     clearInterval(checkBuffer);
                                 }
                             }
-                        }, 500);
+                        }, 300); // 更频繁检查缓冲，减少等待
                     }
                 });
 
-
-                // 播放中断时尝试恢复
                 bgMusic.addEventListener('stalled', function() {
                     if (musicPlayed && !bgMusic.paused) {
                         bgMusic.play().catch(err => {});
                     }
                 });
 
-
-                // 音乐自然结束后可重新播放（不重置）
                 bgMusic.addEventListener('ended', function() {
                     musicPlayed = false;
                     blessingBtn.disabled = false;
@@ -478,18 +494,18 @@
             })
             .catch(err => {
                 clearInterval(waitPopupTimer);
-                updateProgress(0);
-                // 加载失败直接开放功能，不重试（避免打断）
+                clearInterval(fakeProgressTimer); // 关闭假进度条
+                updateProgress(100); // 直接拉满进度条
                 blessingBtn.disabled = false;
                 blessingBtn.textContent = "点击接收祝福（无音乐）";
                 alert(`音乐加载提示：${err.message}~ 已开放无音乐模式，仍可接收祝福哦 ❤️`);
             });
         }
 
-
         // 预加载完成后更新按钮状态
         function completePreload() {
             clearInterval(waitPopupTimer);
+            clearInterval(fakeProgressTimer); // 关闭假进度条
             updateProgress(100);
             blessingBtn.disabled = false;
             blessingBtn.textContent = "点击接收祝福+播放音乐";
@@ -500,20 +516,17 @@
             }
         }
 
-
-        // 更新进度条
+        // 更新进度条（优化平滑过渡）
         function updateProgress(percent) {
             progressFill.style.width = `${percent}%`;
             progressHeart.style.left = `${percent}%`;
             blessingBtn.textContent = `音乐加载中（${percent}）`;
         }
 
-
         /**
-         * 启动祝福和音乐：音乐一旦播放，直到自然结束才停止
+         * 启动祝福和音乐：优化祝福弹出速度
          */
         function startBlessings() {
-            // 启动音乐（仅第一次播放时初始化）
             if (!musicPlayed) {
                 if (bgMusic.readyState >= 2) {
                     startAudioPlay();
@@ -526,47 +539,41 @@
                 musicPlayed = true;
             }
 
-
-            // 祝福逻辑不变
             let isSecondRound = false;
-            for (let i = 0; i < 4 && remainingMessages.length > 0; i++) {
+            // 初始多弹出几个祝福，减少等待感
+            for (let i = 0; i < 6 && remainingMessages.length > 0; i++) {
                 createRandomBlessing();
             }
-
 
             interval = setInterval(() => {
                 if (remainingMessages.length === 0) {
                     if (!isSecondRound) {
                         isSecondRound = true;
                         remainingMessages = [...messages];
-                        for (let i = 0; i < 3; i++) {
+                        for (let i = 0; i < 5; i++) {
                             createRandomBlessing();
                         }
                         return;
                     } else {
                         clearInterval(interval);
-                        // 祝福结束后，音乐继续播放，不重置！
                         setTimeout(() => {
                             blessingBtn.disabled = false;
                             blessingBtn.textContent = "再次接收祝福（音乐继续播放）";
                             remainingMessages = [...messages];
-                            // 保留musicPlayed=true，音乐持续播放
-                        }, 1000);
+                        }, 500); // 缩短等待时间
                         return;
                     }
                 }
 
-                const maxPopup = Math.min(Math.floor(Math.random() * 3) + 1, remainingMessages.length);
+                const maxPopup = Math.min(Math.floor(Math.random() * 4) + 1, remainingMessages.length); // 每次多弹出1个
                 for (let i = 0; i < maxPopup; i++) {
                     createRandomBlessing();
                 }
-            }, 3000);
-
+            }, 2000); // 缩短祝福弹出间隔
 
             blessingBtn.disabled = true;
             blessingBtn.textContent = "祝福发送中🎵";
         }
-
 
         // 启动音频播放
         function startAudioPlay() {
@@ -576,12 +583,10 @@
                 blessingBtn.textContent = "点击接收祝福+播放音乐";
                 musicPlayed = false;
             });
-            // 简化监控：只确保音量正常，不频繁暂停
             playMonitorTimer = setInterval(() => {
                 if (bgMusic.volume === 0) bgMusic.volume = 1;
-            }, 2000);
+            }, 1000); // 更频繁检查音量
         }
-
 
         // 页面切换时恢复播放
         function handleVisibilityChange() {
@@ -590,8 +595,7 @@
             }
         }
 
-
-        // 以下弹窗相关函数不变，直接保留
+        // 弹窗相关函数（优化弹出速度）
         function createRandomBlessing() {
             if (remainingMessages.length === 0) return;
             const template = document.querySelector('.popup-template');
@@ -617,16 +621,16 @@
                 popup.style.left = left;
                 popup.style.opacity = '1';
                 popup.style.transform = 'translateY(0)';
-            }, 0);
+            }, 0); // 立即弹出，不延迟
             const closeBtn = popup.querySelector('.popup-close');
             closeBtn.addEventListener('click', () => {
                 popup.style.opacity = '0';
                 popup.style.transform = 'translateY(20px)';
                 setTimeout(() => {
                     if (document.body.contains(popup)) document.body.removeChild(popup);
-                }, 500);
+                }, 300); // 缩短关闭动画时间
             });
-            let remainingTime = 10;
+            let remainingTime = 8; // 缩短弹窗自动关闭时间
             const countdown = popup.querySelector('.popup-countdown');
             const countdownTimer = setInterval(() => {
                 remainingTime--;
@@ -637,11 +641,10 @@
                     popup.style.transform = 'translateY(20px)';
                     setTimeout(() => {
                         if (document.body.contains(popup)) document.body.removeChild(popup);
-                    }, 500);
+                    }, 300);
                 }
             }, 1000);
         }
-
 
         function createWaitPopup() {
             const template = document.querySelector('.wait-popup-template');
@@ -677,7 +680,7 @@
                 isWaitPopupShowing = false;
                 closePopup(popup);
             });
-            let remainingTime = 4;
+            let remainingTime = 3; // 缩短等待弹窗关闭时间
             const countdown = popup.querySelector('.popup-countdown');
             const countdownTimer = setInterval(() => {
                 remainingTime--;
@@ -690,16 +693,15 @@
             }, 1000);
         }
 
-
         function closePopup(popup) {
             popup.style.opacity = '0';
             popup.style.transform = 'translateY(20px)';
             setTimeout(() => {
                 if (document.body.contains(popup)) document.body.removeChild(popup);
-            }, 500);
+            }, 300); // 缩短关闭动画
         }
 
-
+        // 调整等待弹窗的弹出间隔，减少弹窗数量
         function startWaitPopups() {
             waitPopupTimer = setInterval(() => {
                 if (musicPreloaded) {
@@ -707,9 +709,8 @@
                     return;
                 }
                 if (!isWaitPopupShowing) createWaitPopup();
-            }, 5000);
+            }, 8000); // 延长等待弹窗弹出间隔，减少干扰
         }
-
 
         // 按钮点击事件
         blessingBtn.addEventListener('click', function() {
@@ -721,9 +722,6 @@
     </script>
 </body>
 </html>
-
-
-
 
 
 
