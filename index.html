@@ -211,6 +211,54 @@
             z-index: 0;
         }
         
+        /* 新增：爱心绽放动画 */
+        @keyframes heartBurst {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.5);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(3);
+                opacity: 0;
+            }
+        }
+        
+        /* 新增：爱心飘飞动画 */
+        @keyframes heartFloat {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        
+        /* 绽放的爱心元素 */
+        .burst-heart {
+            position: absolute;
+            font-size: 24px;
+            color: #ff6b6b;
+            z-index: 999;
+            pointer-events: none;
+            animation: heartBurst 0.8s ease-out forwards;
+        }
+        
+        /* 飘飞的爱心元素 */
+        .float-heart {
+            position: absolute;
+            font-size: 16px;
+            color: #ff6b6b;
+            z-index: 998;
+            pointer-events: none;
+            opacity: 0;
+        }
+        
         @keyframes heartbeat {
             0% { transform: scale(1); }
             50% { transform: scale(1.1); }
@@ -363,6 +411,7 @@
         const bgMusic = document.getElementById('bgMusic');
         const progressFill = document.getElementById('progressFill');
         const progressHeart = document.getElementById('progressHeart');
+        const progressBar = document.querySelector('.progress-bar'); // 进度条容器
         let interval = null;
         let musicPlayed = false; 
         let remainingMessages = [...messages];
@@ -379,8 +428,9 @@
         let playMonitorTimer = null;
         const MIN_BUFFER_THRESHOLD = 3;
         let fakeProgressTimer = null;
-        let currentDisplayPercent = 0; // 记录当前展示的进度值，防止回弹
-        let realProgressPercent = 0; // 记录真实的音频加载进度
+        let currentDisplayPercent = 0;
+        let realProgressPercent = 0;
+        let isBurstAnimated = false; // 标记是否已播放过绽放动画
 
         // 页面加载时初始化
         window.addEventListener('load', function() {
@@ -395,19 +445,18 @@
             });
         });
 
-        // 修复假进度条逻辑：只在真实进度停滞时推进，且不被真实进度回退
+        // 假进度条逻辑
         function startFakeProgress() {
-            let lastRealProgressTime = Date.now(); // 记录最后一次真实进度更新的时间
+            let lastRealProgressTime = Date.now();
             fakeProgressTimer = setInterval(() => {
                 if (musicPreloaded || currentDisplayPercent >= 90) {
                     clearInterval(fakeProgressTimer);
                     return;
                 }
 
-                // 只有真实进度超过3秒没更新，才推进假进度
                 const now = Date.now();
                 if (now - lastRealProgressTime > 3000) {
-                    currentDisplayPercent += Math.floor(Math.random() * 2) + 1; // 每次只加1-2%，更平缓
+                    currentDisplayPercent += Math.floor(Math.random() * 2) + 1;
                     currentDisplayPercent = Math.min(currentDisplayPercent, 90);
                     updateProgressDisplay(currentDisplayPercent);
                 }
@@ -442,9 +491,7 @@
                                 chunks.push(value);
                                 loadedSize += value.length;
                                 realProgressPercent = Math.min(Math.floor((loadedSize / totalSize) * 100), 100);
-                                // 更新最后一次真实进度的时间
                                 lastRealProgressTime = Date.now();
-                                // 只有真实进度大于当前展示进度时，才更新展示
                                 if (realProgressPercent > currentDisplayPercent) {
                                     currentDisplayPercent = realProgressPercent;
                                     updateProgressDisplay(currentDisplayPercent);
@@ -500,6 +547,7 @@
                 clearInterval(fakeProgressTimer);
                 currentDisplayPercent = 100;
                 updateProgressDisplay(currentDisplayPercent);
+                triggerHeartBurst(); // 加载失败也触发绽放动画
                 blessingBtn.disabled = false;
                 blessingBtn.textContent = "点击接收祝福（无音乐）";
                 alert(`音乐加载提示：${err.message}~ 已开放无音乐模式，仍可接收祝福哦 ❤️`);
@@ -512,6 +560,7 @@
             clearInterval(fakeProgressTimer);
             currentDisplayPercent = 100;
             updateProgressDisplay(currentDisplayPercent);
+            triggerHeartBurst(); // 加载完成触发绽放动画
             blessingBtn.disabled = false;
             blessingBtn.textContent = "点击接收祝福+播放音乐";
             const activeWaitPopup = document.querySelector('.wait-popup');
@@ -521,11 +570,82 @@
             }
         }
 
-        // 统一更新进度展示，避免回弹
+        // 统一更新进度展示
         function updateProgressDisplay(percent) {
             progressFill.style.width = `${percent}%`;
             progressHeart.style.left = `${percent}%`;
             blessingBtn.textContent = `音乐加载中（${percent}）`;
+            // 进度到100%时触发动画
+            if (percent === 100 && !isBurstAnimated) {
+                triggerHeartBurst();
+            }
+        }
+
+        // 新增：触发爱心绽放和飘飞动画
+        function triggerHeartBurst() {
+            if (isBurstAnimated) return;
+            isBurstAnimated = true;
+
+            // 1. 进度条位置生成绽放爱心
+            const progressBarRect = progressBar.getBoundingClientRect();
+            const burstX = progressBarRect.left + progressBarRect.width / 2;
+            const burstY = progressBarRect.top + progressBarRect.height / 2;
+
+            // 创建3个绽放的爱心
+            for (let i = 0; i < 3; i++) {
+                const burstHeart = document.createElement('div');
+                burstHeart.className = 'burst-heart';
+                burstHeart.textContent = '❤️';
+                burstHeart.style.left = `${burstX}px`;
+                burstHeart.style.top = `${burstY}px`;
+                burstHeart.style.animationDelay = `${i * 0.2}s`; // 依次绽放
+                document.body.appendChild(burstHeart);
+
+                // 动画结束后移除元素
+                setTimeout(() => {
+                    if (document.body.contains(burstHeart)) {
+                        document.body.removeChild(burstHeart);
+                    }
+                }, 800);
+            }
+
+            // 2. 生成随机飘飞的爱心（20个）
+            setTimeout(() => {
+                for (let i = 0; i < 20; i++) {
+                    createFloatHeart();
+                }
+            }, 300);
+        }
+
+        // 新增：创建飘飞的爱心
+        function createFloatHeart() {
+            const floatHeart = document.createElement('div');
+            floatHeart.className = 'float-heart';
+            floatHeart.textContent = '❤️';
+
+            // 随机位置和动画参数
+            const viewWidth = document.documentElement.clientWidth;
+            const viewHeight = document.documentElement.clientHeight;
+            const randomX = Math.floor(Math.random() * viewWidth);
+            const randomSize = Math.floor(Math.random() * 12) + 8; // 8-20px
+            const randomDelay = Math.floor(Math.random() * 3) + 0.5; // 0.5-3.5s
+            const randomDuration = Math.floor(Math.random() * 8) + 6; // 6-14s
+            const randomRotate = Math.floor(Math.random() * 360);
+
+            floatHeart.style.left = `${randomX}px`;
+            floatHeart.style.bottom = `0px`;
+            floatHeart.style.fontSize = `${randomSize}px`;
+            floatHeart.style.animation = `heartFloat ${randomDuration}s ease-in-out ${randomDelay}s forwards`;
+            floatHeart.style.transform = `rotate(${randomRotate}deg)`;
+
+            document.body.appendChild(floatHeart);
+
+            // 动画结束后移除元素
+            setTimeout(() => {
+                if (document.body.contains(floatHeart)) {
+                    document.body.removeChild(floatHeart);
+                }
+            }, (randomDelay + randomDuration) * 1000);
         }
 
         /**
