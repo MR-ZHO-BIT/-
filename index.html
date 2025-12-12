@@ -102,8 +102,8 @@
             background: #ffccd5;
             border-radius: 10px;
             width: 0;
-            /* 平滑过渡核心：固定过渡时长，消除跳变 */
-            transition: width 0.5s linear;
+            /* 适中的过渡时长，平衡速度与流畅 */
+            transition: width 0.3s linear;
         }
         .progress-heart {
             position: absolute;
@@ -112,8 +112,8 @@
             left: 0;
             font-size: 16px;
             z-index: 3;
-            /* 爱心跟随进度平滑移动 */
-            transition: left 0.5s linear;
+            /* 爱心跟随速度同步匹配 */
+            transition: left 0.3s linear;
         }
         
         .message {
@@ -139,6 +139,7 @@
             max-width: 220px;
             z-index: 2;
         }
+        
         .btn:disabled {
             background: #ff9aa2;
             cursor: not-allowed;
@@ -448,10 +449,10 @@
         });
 
         /**
-         * 核心优化：平滑进度逻辑 - 匀速追赶目标进度，无跳变
+         * 核心优化：适中的进度速度，平衡流畅与节奏
          */
         function startSmoothProgress() {
-            // 每50ms更新一次，实现丝滑过渡
+            // 定时器间隔和涨幅调至适中
             smoothProgressTimer = setInterval(() => {
                 if (musicPreloaded || currentPercent >= 100) {
                     currentPercent = 100;
@@ -461,14 +462,18 @@
                     return;
                 }
 
-                // 匀速追赶目标进度，每次只涨0.2%，避免跳变
+                // 每次涨0.4%，比初始快一倍，比最快慢2.5倍
                 if (currentPercent < targetPercent) {
-                    currentPercent += 0.2;
-                    // 防止超过目标进度
+                    currentPercent += 0.4;
                     currentPercent = Math.min(currentPercent, targetPercent);
                     updateProgressDisplay(currentPercent);
                 }
-            }, 50);
+                // 真实进度卡住时，缓慢保底上涨
+                else if (currentPercent < 100) {
+                    currentPercent += 0.05;
+                    updateProgressDisplay(currentPercent);
+                }
+            }, 40); // 间隔适中，兼顾流畅和速度
         }
 
         /**
@@ -498,7 +503,6 @@
                                 }
                                 chunks.push(value);
                                 loadedSize += value.length;
-                                // 只更新目标进度，由平滑逻辑处理展示
                                 targetPercent = Math.min(Math.floor((loadedSize / totalSize) * 100), 100);
                                 controller.enqueue(value);
                                 readChunk();
@@ -570,12 +574,11 @@
 
         // 统一更新进度展示 - 只接收平滑后的进度值
         function updateProgressDisplay(percent) {
-            const displayPercent = Math.floor(percent); // 取整显示
+            const displayPercent = Math.floor(percent);
             progressFill.style.width = `${percent}%`;
             progressHeart.style.left = `${percent}%`;
             blessingBtn.textContent = `音乐加载中（${displayPercent}）`;
             
-            // 进度到100%且未触发动画时执行
             if (displayPercent === 100 && !isBurstAnimated) {
                 triggerHeartBurst();
                 isBurstAnimated = true;
@@ -588,7 +591,6 @@
             const burstX = progressBarRect.left + progressBarRect.width / 2;
             const burstY = progressBarRect.top + progressBarRect.height / 2;
 
-            // 创建3个绽放的爱心
             for (let i = 0; i < 3; i++) {
                 const burstHeart = document.createElement('div');
                 burstHeart.className = 'burst-heart';
@@ -605,7 +607,6 @@
                 }, 800);
             }
 
-            // 生成随机飘飞的爱心（20个）
             setTimeout(() => {
                 for (let i = 0; i < 20; i++) {
                     createFloatHeart();
@@ -745,7 +746,9 @@
                 popup.style.opacity = '0';
                 popup.style.transform = 'translateY(20px)';
                 setTimeout(() => {
-                    if (document.body.contains(popup)) document.body.removeChild(popup);
+                    if (document.body.contains(popup)) {
+                        document.body.removeChild(popup);
+                    }
                 }, 300);
             });
             let remainingTime = 8;
@@ -758,7 +761,9 @@
                     popup.style.opacity = '0';
                     popup.style.transform = 'translateY(20px)';
                     setTimeout(() => {
-                        if (document.body.contains(popup)) document.body.removeChild(popup);
+                        if (document.body.contains(popup)) {
+                            document.body.removeChild(popup);
+                        }
                     }, 300);
                 }
             }, 1000);
@@ -815,7 +820,9 @@
             popup.style.opacity = '0';
             popup.style.transform = 'translateY(20px)';
             setTimeout(() => {
-                if (document.body.contains(popup)) document.body.removeChild(popup);
+                if (document.body.contains(popup)) {
+                    document.body.removeChild(popup);
+                }
             }, 300);
         }
 
@@ -839,6 +846,7 @@
     </script>
 </body>
 </html>
+
 
 
 
