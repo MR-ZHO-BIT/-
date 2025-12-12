@@ -280,7 +280,6 @@
     
     <script>
         const messages = [
-            
             "首先我得辟谣一下，谁说的越早睡越虚，纯属谣言造谣的，而且你玩小招，耍赖 (oﾟvﾟ)ノ",
             "居然防着我这个老实人，一直到12点不睡，无语了家人们，人心不古啊 😶",
             "还有我觉得睡前不能玩王者、原神、和平精英，尤其是王者，肿莫你不服气？你有权保存不服",
@@ -326,15 +325,17 @@
             "别自己生闷气，找我说说话，我不会聊天，但我喜欢你的倾述 😊",
             "笑一笑，烦恼全跑掉 😄",
             "做事不冲动，这句话也适用我 😬",
-            "一切都会越来越好，正如悲伤可以被时间洗涤 ❤️ "
-            "这世界不停开花，我想放进你心里一朵 🌹 "
+            "一切都会越来越好，正如悲伤可以被时间洗涤 ❤️ ", // 补全逗号
+            "这世界不停开花，我想放进你心里一朵 🌹 " // 补全逗号
         ];
+
         const colors = [
             "#FFD1DC", "#FFB7B2", "#FFDAC1", "#E2F0CB", "#B5EAD7",
             "#C7CEEA", "#FF9AA2", "#A7E8BD", "#FFE6B5", "#D4BBFC",
             "#FFB5C2", "#A0E7E5", "#FFC8A2", "#B4E8E6", "#FFC6D9",
             "#C5E0D8", "#FFB8C6", "#B8DFD8", "#FFD3B6", "#D6EADF"
         ];
+
         const waitPopupTexts = [
             "系统正在疯狂加载中！小粥同学已经在猛敲键盘啦，再给我一丢丢时间～",
             "别急别急！我这就快马加鞭处理，再等亿秒，惊喜马上到你碗里来！",
@@ -358,6 +359,7 @@
             "正在把祝福加热到37℃（不冰不辣超温和）～ 适配知意专属体质，马上好🌡️",
             "知意别急！我要检查有没有漏加糖，如果不甜就要你钱，再等亿秒就好🍯"
         ];
+
         const blessingBtn = document.getElementById('blessingBtn');
         const bgMusic = document.getElementById('bgMusic');
         const progressFill = document.getElementById('progressFill');
@@ -370,13 +372,14 @@
         let shownWaitTextIndexes = [];
         let isWaitPopupShowing = false;
         const audioConfig = {
-            url: "missyouhani.mp3",
+            url: "missyouhani.mp3", // 注意：确保这个音频文件和HTML文件在同一目录，否则改绝对路径
             timeout: 15000,
             chunkSize: 65536
         };
         let audioObjectURL = null;
         let playMonitorTimer = null;
         const MIN_BUFFER_THRESHOLD = 5; // 合理缓冲阈值，避免过度暂停
+
 
         // 页面加载时初始化
         window.addEventListener('load', function() {
@@ -389,6 +392,7 @@
                 if (playMonitorTimer) clearInterval(playMonitorTimer);
             });
         });
+
 
         /**
          * 音频加载：简化逻辑，只保证加载和缓冲，不重复加载
@@ -405,6 +409,7 @@
                 const reader = response.body.getReader();
                 let loadedSize = 0;
                 const chunks = [];
+
 
                 return new ReadableStream({
                     start(controller) {
@@ -439,6 +444,7 @@
                     bgMusic.removeEventListener('canplaythrough', onCanPlayThrough);
                 });
 
+
                 // 缓冲不足时仅等待，不暂停（减少干预）
                 bgMusic.addEventListener('waiting', function() {
                     if (musicPlayed && !bgMusic.paused) {
@@ -454,12 +460,14 @@
                     }
                 });
 
+
                 // 播放中断时尝试恢复
                 bgMusic.addEventListener('stalled', function() {
                     if (musicPlayed && !bgMusic.paused) {
                         bgMusic.play().catch(err => {});
                     }
                 });
+
 
                 // 音乐自然结束后可重新播放（不重置）
                 bgMusic.addEventListener('ended', function() {
@@ -478,6 +486,7 @@
             });
         }
 
+
         // 预加载完成后更新按钮状态
         function completePreload() {
             clearInterval(waitPopupTimer);
@@ -491,12 +500,14 @@
             }
         }
 
+
         // 更新进度条
         function updateProgress(percent) {
             progressFill.style.width = `${percent}%`;
             progressHeart.style.left = `${percent}%`;
             blessingBtn.textContent = `音乐加载中（${percent}）`;
         }
+
 
         /**
          * 启动祝福和音乐：音乐一旦播放，直到自然结束才停止
@@ -515,11 +526,13 @@
                 musicPlayed = true;
             }
 
+
             // 祝福逻辑不变
             let isSecondRound = false;
             for (let i = 0; i < 4 && remainingMessages.length > 0; i++) {
                 createRandomBlessing();
             }
+
 
             interval = setInterval(() => {
                 if (remainingMessages.length === 0) {
@@ -542,15 +555,18 @@
                         return;
                     }
                 }
+
                 const maxPopup = Math.min(Math.floor(Math.random() * 3) + 1, remainingMessages.length);
                 for (let i = 0; i < maxPopup; i++) {
                     createRandomBlessing();
                 }
             }, 3000);
 
+
             blessingBtn.disabled = true;
             blessingBtn.textContent = "祝福发送中🎵";
         }
+
 
         // 启动音频播放
         function startAudioPlay() {
@@ -566,12 +582,14 @@
             }, 2000);
         }
 
+
         // 页面切换时恢复播放
         function handleVisibilityChange() {
             if (musicPlayed && !document.hidden && bgMusic.paused && !bgMusic.ended) {
                 bgMusic.play().catch(err => {});
             }
         }
+
 
         // 以下弹窗相关函数不变，直接保留
         function createRandomBlessing() {
@@ -624,6 +642,7 @@
             }, 1000);
         }
 
+
         function createWaitPopup() {
             const template = document.querySelector('.wait-popup-template');
             const templatePopup = template.querySelector('.popup-content');
@@ -671,6 +690,7 @@
             }, 1000);
         }
 
+
         function closePopup(popup) {
             popup.style.opacity = '0';
             popup.style.transform = 'translateY(20px)';
@@ -678,6 +698,7 @@
                 if (document.body.contains(popup)) document.body.removeChild(popup);
             }, 500);
         }
+
 
         function startWaitPopups() {
             waitPopupTimer = setInterval(() => {
@@ -689,6 +710,7 @@
             }, 5000);
         }
 
+
         // 按钮点击事件
         blessingBtn.addEventListener('click', function() {
             if (blessingBtn.disabled) return;
@@ -699,7 +721,6 @@
     </script>
 </body>
 </html>
-
 
 
 
