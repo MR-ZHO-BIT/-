@@ -290,12 +290,16 @@
                 <div class="progress-fill" id="progressFill"></div>
                 <div class="progress-heart" id="progressHeart">❤️</div>
             </div>
-            <p class="message">正在自动加载音乐~</p>
-            <button class="btn" id="blessingBtn" disabled>音乐加载中（0）</button>
+            <p class="message">正在初始化祝福程序~</p>
+            <button class="btn" id="blessingBtn" disabled>准备中（0）</button>
             <p class="footer">专属于你的祝福程序</p>
-            <audio id="bgMusic" loop preload="auto">
+            <!-- 音频标签改为直接引用，支持本地文件 -->
+            <audio id="bgMusic" loop preload="metadata">
+                <!-- 替换为你的音频文件路径（建议和HTML同目录） -->
+                <source src="missyouhani.mp3" type="audio/mpeg">
+                <source src="missyouhani.ogg" type="audio/ogg">
                 您的浏览器不支持音频播放
-            </audio>
+            
         </div>
     </div>
     
@@ -416,39 +420,31 @@
         let waitPopupTimer = null;
         let shownWaitTextIndexes = [];
         let isWaitPopupShowing = false;
-        const audioConfig = {
-            url: "missyouhani.mp3", 
-            timeout: 8000,
-            chunkSize: 131072
-        };
-        let audioObjectURL = null;
-        let playMonitorTimer = null;
-        const MIN_BUFFER_THRESHOLD = 3;
         let smoothProgressTimer = null;
         let targetPercent = 0;
         let currentPercent = 0;
         let isBurstAnimated = false;
-        let audioTimeoutTimer = null; // 音频加载超时定时器
+        let audioTimeoutTimer = null;
 
         // 页面加载时初始化
         window.addEventListener('load', function() {
-            fetchAudio(audioConfig.url);
+            // 改用音频标签原生加载，避免fetch跨域
+            initAudioLoad();
             startWaitPopups();
             startSmoothProgress();
-            // 新增：音频加载10秒超时兜底
+            // 5秒超时兜底（本地文件加载通常很快）
             audioTimeoutTimer = setTimeout(() => {
                 forceCompleteLoad();
-            }, 10000);
+            }, 5000);
             document.addEventListener('visibilitychange', handleVisibilityChange);
             window.addEventListener('beforeunload', function() {
-                if (audioObjectURL) URL.revokeObjectURL(audioObjectURL);
                 if (playMonitorTimer) clearInterval(playMonitorTimer);
                 if (smoothProgressTimer) clearInterval(smoothProgressTimer);
                 if (audioTimeoutTimer) clearTimeout(audioTimeoutTimer);
             });
         });
 
-        // 适中的进度速度逻辑
+        // 进度条平滑动画
         function startSmoothProgress() {
             smoothProgressTimer = setInterval(() => {
                 if (musicPreloaded || currentPercent >= 100) {
@@ -456,7 +452,6 @@
                     updateProgressDisplay(currentPercent);
                     clearInterval(smoothProgressTimer);
                     triggerHeartBurst();
-                    // 进度到100%强制解锁按钮
                     forceCompleteLoad();
                     return;
                 }
@@ -472,86 +467,56 @@
             }, 40);
         }
 
-        // 音频加载逻辑
-        function fetchAudio(audioUrl) {
-            fetch(audioUrl, {
-                method: 'GET',
-                mode: 'cors',
-                cache: 'force-cache',
-                priority: 'high'
-            })
-            .then(response => {
-                if (!response.ok) throw new Error("音频加载失败（网络问题）");
-                const totalSize = parseInt(response.headers.get('content-length'), 10) || 1;
-                const reader = response.body.getReader();
-                let loadedSize = 0;
-                const chunks = [];
+        // 初始化音频加载（原生方式，支持本地文件）
+        function initAudioLoad() {
+            // 监听音频可播放事件
+            bgMusic.addEventListener('canplaythrough', function onCanPlay() {
+                clearTimeout(audioTimeoutTimer);
+                musicPreloaded = true;
+                targetPercent = 100;
+                completePreload();
+                bgMusic.removeEventListener('canplaythrough', onCanPlay);
+            });
 
-                return new ReadableStream({
-                    start(controller) {
-                        const readChunk = () => {
-                            reader.read().then(({ done, value }) => {
-                                if (done) {
-                                    controller.close();
-                                    return;
-                                }
-                                chunks.push(value);
-                                loadedSize += value.length;
-                                targetPercent = Math.min(Math.floor((loadedSize / totalSize) * 100), 100);
-                                controller.enqueue(value);
-                                readChunk();
-                            });
-                        };
-                        readChunk();
+            // 监听加载进度
+            bgMusic.addEventListener('progress', function() {
+                if (bgMusic.buffered.length > 0) {
+                    const bufferedEnd = bgMusic.buffered.end(bgMusic.buffered.length - 1);
+                    const duration = bgMusic.duration;
+                    if (duration > 0) {
+                        targetPercent = Math.min(Math.floor((bufferedEnd / duration) * 100), 100);
                     }
-                });
-            })
-            .then(stream => new Response(stream))
-            .then(res => res.blob())
-            .then(blob => {
-                audioObjectURL = URL.createObjectURL(blob);
-                bgMusic.src = audioObjectURL;
-                
-                bgMusic.addEventListener('canplay', function onCanPlay() {
-                    clearTimeout(audioTimeoutTimer); // 清除超时定时器
-                    musicPreloaded = true;
-                    targetPercent = 100;
-                    completePreload();
-                    bgMusic.removeEventListener('canplay', onCanPlay);
-                });
+                }
+            });
 
-                bgMusic.addEventListener('waiting', function() {
-                    if (musicPlayed && !bgMusic.paused) {
-                        const checkBuffer = setInterval(() => {
-                            if (bgMusic.buffered.length > 0) {
-                                const bufferedEnd = bgMusic.buffered.end(bgMusic.buffered.length - 1);
-                                const bufferLeft = bufferedEnd - bgMusic.currentTime;
-                                if (bufferLeft >= MIN_BUFFER_THRESHOLD) {
-                                    clearInterval(checkBuffer);
-                                }
-                            }
-                        }, 300);
-                    }
-                });
-
-                bgMusic.addEventListener('stalled', function() {
-                    if (musicPlayed && !bgMusic.paused) {
-                        bgMusic.play().catch(err => {});
-                    }
-                });
-
-                bgMusic.addEventListener('ended', function() {
-                    musicPlayed = false;
-                    blessingBtn.disabled = false;
-                    blessingBtn.textContent = "再次播放音乐+接收祝福";
-                });
-            })
-            .catch(err => {
-                clearInterval(waitPopupTimer);
+            // 加载错误处理
+            bgMusic.addEventListener('error', function() {
                 clearTimeout(audioTimeoutTimer);
                 targetPercent = 100;
-                forceCompleteLoad(); // 加载失败也强制解锁
-                alert(`音乐加载提示：${err.message}~ 已开放无音乐模式，仍可接收祝福哦 ❤️`);
+                forceCompleteLoad();
+                alert('音频文件加载失败！请检查文件是否存在，或更换为mp3/ogg格式 ❤️');
+            });
+
+            // 等待缓冲处理
+            bgMusic.addEventListener('waiting', function() {
+                if (musicPlayed && !bgMusic.paused) {
+                    const checkBuffer = setInterval(() => {
+                        if (bgMusic.buffered.length > 0) {
+                            const bufferedEnd = bgMusic.buffered.end(bgMusic.buffered.length - 1);
+                            const bufferLeft = bufferedEnd - bgMusic.currentTime;
+                            if (bufferLeft >= 1) { // 缓冲1秒以上即可继续播放
+                                clearInterval(checkBuffer);
+                            }
+                        }
+                    }, 300);
+                }
+            });
+
+            // 播放结束处理
+            bgMusic.addEventListener('ended', function() {
+                musicPlayed = false;
+                blessingBtn.disabled = false;
+                blessingBtn.textContent = "再次播放音乐+接收祝福";
             });
         }
 
@@ -567,14 +532,14 @@
             }
         }
 
-        // 新增：强制完成加载（进度100%/超时/失败时调用）
+        // 强制完成加载（超时/失败时）
         function forceCompleteLoad() {
-            if (musicPreloaded) return; // 已正常加载则跳过
+            if (musicPreloaded) return;
             clearInterval(waitPopupTimer);
             clearTimeout(audioTimeoutTimer);
-            musicPreloaded = true; // 强制标记为加载完成
+            musicPreloaded = true;
             blessingBtn.disabled = false;
-            // 根据音频是否能播放，显示不同按钮文字
+            // 检测音频是否可播放
             if (bgMusic.readyState >= 2) {
                 blessingBtn.textContent = "点击接收祝福+播放音乐";
             } else {
@@ -593,7 +558,7 @@
             const displayPercent = Math.floor(percent);
             progressFill.style.width = `${percent}%`;
             progressHeart.style.left = `${percent}%`;
-            blessingBtn.textContent = `音乐加载中（${displayPercent}）`;
+            blessingBtn.textContent = `准备中（${displayPercent}）`;
             
             if (displayPercent === 100 && !isBurstAnimated) {
                 triggerHeartBurst();
@@ -708,14 +673,15 @@
             blessingBtn.textContent = "加载中...🎵";
         }
 
-        // 启动音频播放
+        // 启动音频播放（处理浏览器自动播放限制）
         function startAudioPlay() {
             bgMusic.play().catch(err => {
-                alert('请点击页面空白处后再尝试播放音乐~');
+                alert('浏览器限制自动播放，请点击页面空白处后再尝试~');
                 blessingBtn.disabled = false;
                 blessingBtn.textContent = "点击接收祝福+播放音乐";
                 musicPlayed = false;
             });
+            // 音量监控（防止静音）
             playMonitorTimer = setInterval(() => {
                 if (bgMusic.volume === 0) bgMusic.volume = 1;
             }, 1000);
